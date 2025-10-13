@@ -7,7 +7,7 @@
 % The authors should use one of these tracks.
 % Before accepting by the NeurIPS conference, select one of the options below.
 % 0. "default" for submission
- \usepackage{neurips_2025}
+ \usepackage[position, final]{neurips_2025}
 % the "default" option is equal to the "main" option, which is used for the Main Track with double-blind reviewing.
 % 1. "main" option is used for the Main Track
 %  \usepackage[main]{neurips_2025}
@@ -82,33 +82,28 @@
 \maketitle
 
 \begin{abstract}
-Generating singable Cantonese lyrics is challenging due to tonal constraints that affect meaning and rhythm. Existing AI lyric generators often ignore tones, resulting in unnatural pronunciation. This project proposes a \textbf{tone-aware lyric generation system} that rewrites lyrics into Cantonese while preserving melody and emotion. We aim to create a framework and evaluate outputs for tone alignment and singability, demonstrating how AI can assist creative songwriting in tonal languages.
+Generating singable Cantonese lyrics is challenging due to tonal constraints that affect meaning and rhythm. This project proposes a \textbf{tone-aware lyric evaluation} that evaluate whether the Cantonese lyrics aligns with melody tones, and maybe a \textbf{lyric rewriting system} that generates tone-aligned Cantonese lyrics from existing songs.
 \end{abstract}
 
 \section{Introduction}
-Cantonese lyric adaptation faces a unique challenge --- tonal mismatches between melody and lyrics. Unlike Mandarin, Cantonese has six to nine tones that directly affect the semantic and rhythmic harmony of songs. Current AI lyric generators often ignore tone constraints, leading to unnatural pronunciation when sung. This project aims to develop a \textbf{tone-aware lyric rewriting system} that converts existing lyrics into singable Cantonese versions while preserving rhythm, rhyme, and emotion.
+Cantonese lyric adaptation faces a unique challenge --- tonal mismatches between melody and lyrics. Unlike Mandarin, Cantonese has six to nine tones that directly affect the semantic and rhythmic harmony of songs. Current AI lyric generators often ignore tone constraints, leading to unnatural pronunciation when sung. This project aims to develop a \textbf{Evaluation of Cantonese lyrics} and \underline{maybe} a \textbf{tone-aware lyric rewriting system} that converts existing lyrics into singable Cantonese versions according to given prompts while preserving rhythm. I will mainly focus on evaluation, for the rewriting part, I will try my best to achieve it after finishing the evaluation part.
 
 \section{Research Goals}
-\begin{itemize}
-    \item Build a model capable of generating tone-aligned Cantonese lyrics from existing songs.
-    \item Evaluate the quality of tone alignment, fluency, and emotional match.
-\end{itemize}
+First step is training a state-of-the-art model to evaluate whether the lyrics has tonal mismatches. The second step is to build a model capable of generating tone-aligned Cantonese lyrics from existing songs. Final step is evaluate the quality of tone alignment.
 
-\section{Expected Contributions}
+\section{Propose Methods}
 \begin{itemize}
-    \item A novel approach for tone-aware lyric generation in tonal languages.
-    \item Insights into the impact of tone alignment on lyrical naturalness.
-    \item A lightweight system feasible to develop and test within several months on a single GPU.
+    \item[1] Collecting and labeling songs and lyrics from websites and existing datasets.
+    \item[2] SL for evaluation model. Maybe I will fine-tuned pre-trained models like QWen-Audio.
+    \item[3] Both SL and RL for lyric rewriting. I will use pre-trained language models to generate lyrics, and use the evaluation model as a reward model for RL.
 \end{itemize}
 
 \section{Expected Outcomes}
 \begin{itemize}
-    \item High tone--melody alignment for Cantonese lyrics.
-    \item Preservation of semantic coherence from original songs.
-    \item Noticeable improvement in singability and naturalness over existing systems.
+    \item Tone-aware evaluation system for Cantonese lyrics.
+    \item Tone--melody alignment generation model for Cantonese lyrics.
 \end{itemize}
 
 This work demonstrates how AI can support creative music generation in tonal languages, combining \textbf{academic novelty} with \textbf{practical applications} in songwriting.
-
 
 \end{document}
