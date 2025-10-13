@@ -56,7 +56,7 @@
 \usepackage{xcolor}         % colors
 
 % Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote. 
-\title{Multimodal Artificial Intelligence for Doudizhu}
+\title{Cantonese Lyric Generation with Tone-Aware Alignment}
 
 
 % The \author macro works with any number of authors. There are two commands
@@ -81,32 +81,34 @@
 
 \maketitle
 
-
 \begin{abstract}
-Doudizhu is a typical poke game with imperfect information. My project aims to build a multimodal artificial intelligence for Doudizhu. The AI will not only take the game state and history action as input, but also the emotional and facial expression of the players by a vision recognition module and a speech recognition module, which also handle the transform of game state (if possible).
+Generating singable Cantonese lyrics is challenging due to tonal constraints that affect meaning and rhythm. Existing AI lyric generators often ignore tones, resulting in unnatural pronunciation. This project proposes a \textbf{tone-aware lyric generation system} that rewrites lyrics into Cantonese while preserving melody and emotion. We aim to create a framework and evaluate outputs for tone alignment and singability, demonstrating how AI can assist creative songwriting in tonal languages.
 \end{abstract}
 
-\section*{Introduction}
-Doudizhu represents a complex decision-making environment involving hidden information, bluffing, and emotional interaction among players. Traditional AI approaches for such games focus solely on card state and history, ignoring the social and psychological aspects that influence player behavior. This project explores a multimodal AI that perceives not only the gameplay state but also player expressions and speech.
+\section{Introduction}
+Cantonese lyric adaptation faces a unique challenge --- tonal mismatches between melody and lyrics. Unlike Mandarin, Cantonese has six to nine tones that directly affect the semantic and rhythmic harmony of songs. Current AI lyric generators often ignore tone constraints, leading to unnatural pronunciation when sung. This project aims to develop a \textbf{tone-aware lyric rewriting system} that converts existing lyrics into singable Cantonese versions while preserving rhythm, rhyme, and emotion.
 
 \section{Research Goals}
-
-The main research goal is to design an AI system capable of integrating multimodal sensory data to enhance strategic reasoning in imperfect-information games.  
-
-\section{Methodology}
 \begin{itemize}
-    \item Collecting previous Doudizhu game data, including labeled datasets for card recognition, and base datasets of videos and audios of Doudizhu games.
-    \item Collecting existed models and frameworks of Doudizhu AI, emotion recognition, facial expression recognition, and speech recognition.
-    \item Implementing a baseline Doudizhu AI using reinforcement learning or supervised learning.(Currently I can only find RL frameworks)
-    \item Train the prototype model with the collected datasets.
+    \item Build a model capable of generating tone-aligned Cantonese lyrics from existing songs.
+    \item Evaluate the quality of tone alignment, fluency, and emotional match.
 \end{itemize}
 
-\section{Expected Contributions and Outcomes}
-Deliver a working prototype demonstrating the feasibility of emotion-aware Doudizhu AI.
+\section{Expected Contributions}
+\begin{itemize}
+    \item A novel approach for tone-aware lyric generation in tonal languages.
+    \item Insights into the impact of tone alignment on lyrical naturalness.
+    \item A lightweight system feasible to develop and test within several months on a single GPU.
+\end{itemize}
 
-\section{Conclusion}
-This project seeks to combine game-theoretic reasoning with multimodal learning to build an intelligent Doudizhu agent that interacts and reasons in a more human-like manner. The research outcomes may inspire further exploration of emotion-integrated AI in complex social games.
+\section{Expected Outcomes}
+\begin{itemize}
+    \item High tone--melody alignment for Cantonese lyrics.
+    \item Preservation of semantic coherence from original songs.
+    \item Noticeable improvement in singability and naturalness over existing systems.
+\end{itemize}
 
+This work demonstrates how AI can support creative music generation in tonal languages, combining \textbf{academic novelty} with \textbf{practical applications} in songwriting.
 
 
 \end{document}
