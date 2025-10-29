@@ -1,0 +1,3 @@
+[submodule "src/datagen/SOFA"]
+	path = src/datagen/SOFA
+	url = https://github.com/qiuqiao/SOFA
