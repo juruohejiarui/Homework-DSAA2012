@@ -7,3 +7,5 @@
 *.synctex.gz
 *.pyc
 *.pdf
+dataset/
+src/datagen/pretrained_models/
