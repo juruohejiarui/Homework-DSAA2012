@@ -1,3 +1,6 @@
 [submodule "src/datagen/SOFA"]
 	path = src/datagen/SOFA
 	url = https://github.com/qiuqiao/SOFA
+[submodule "src/datagen/SOFA-Cantonese-Model"]
+	path = src/datagen/SOFA-Cantonese-Model
+	url = https://github.com/RibosomeK/SOFA-Cantonese-Model.git
