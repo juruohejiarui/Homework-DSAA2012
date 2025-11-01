@@ -6,13 +6,16 @@ from tqdm import tqdm
 import torch
 import json
 import numpy as np
+import lyrics2labfile as lrc2lab
 
 model = None
 
 def create_chunk_dir(audio_name : str) -> str :
     chunk_dir = os.path.join("../dataset/chunks", audio_name)
-    os.makedirs(chunk_dir, exist_ok=True)
-    os.system(f"rm {chunk_dir}/*")
+    if not os.path.exists(chunk_dir) :
+        os.makedirs(chunk_dir, exist_ok=True)
+    else :
+        return None
     return chunk_dir
 
 def separate_auto(audio : str, min_silence_len=300, silence_thresh=-33, keep_silence=200):
@@ -33,11 +36,14 @@ def separate_auto(audio : str, min_silence_len=300, silence_thresh=-33, keep_sil
     
     chunk_dir = create_chunk_dir(audio_name)
 
+    if chunk_dir is None :
+        return
+
     for i, chunk in enumerate(chunks) :
         chunk_path = os.path.join(chunk_dir, f"{i}.wav")
         chunk.export(chunk_path, format="wav")
         text = model.transcribe(chunk_path)
-        results.append({"audio" : i, "recog_text": text['text']})
+        results.append({"audio" : i, "text": text['text']})
     with open(os.path.join(chunk_dir, "metadata.json"), 'w', encoding="utf-8") as f :
         json.dump(results, f, indent=4, ensure_ascii=False)
     return chunks
@@ -62,27 +68,32 @@ def separate_manual(audio : str, timestamp : str) :
 
     chunk_dir = create_chunk_dir(audio_name)
 
+    if chunk_dir is None :
+        return 
+
     for i, (st, ed) in enumerate(zip(seg[:-1], seg[1:])) :
-        tmp = st.split(' ')
+        tmp = st.strip().split(' ')
         
         if len(tmp) > 1:
-            st = tmp[0]
-            text = tmp[1]
+            st = tmp[0].strip()
+            text = tmp[1].strip()
         else :
             text = None
+
+        if isinstance(text, str) and text == "DELETE" :
+            continue
 
         ed = ed.split(' ')[0]
         part = wav[toIdx(st) - 5 : toIdx(ed) + 5]
         chunk_path = os.path.join(chunk_dir, f"{i}.wav")
         part.export(chunk_path, format="wav")
+
         text = text if text is not None else model.transcribe(chunk_path)['text']
-        results.append({"audio" : i, "recog_text": text['text']})
+
+        results.append({"audio" : i, "text": text if isinstance(text, str) else text['text']})
     
     with open(os.path.join(chunk_dir, "metadata.json"), 'w', encoding='utf-8') as f:
         json.dump(results, f, indent=4, ensure_ascii=False)
-
-def get_frequent(audio_name : str, meta : dict[str, any]) -> np.ndarray :
-    pass
     
 if __name__ == "__main__" :
     items = os.listdir("../dataset/audios/")
@@ -94,6 +105,12 @@ if __name__ == "__main__" :
 
         with open(os.path.join("../dataset/chunks", item, "metadata.json"), 'r', encoding='utf-8') as f :
             metas : list[dict] = json.load(f)
+            
         for meta in metas :
-            freq = get_frequent(item, meta)
-            np.save(os.path.join("../dataset/chunks", item, f"{meta['audio']}.npy"), freq)
+            lab, pho = lrc2lab.convert(meta['text'])
+            meta['phoneme'] = pho
+            with open(os.path.join("../dataset/chunks", item, f"{meta['audio']}.lab"), 'w', encoding='utf-8') as f :
+                f.write(lab.strip() + "\n")
+        
+        with open(os.path.join("../dataset/chunks", item, "metadata.json"), 'w', encoding='utf-8') as f :
+            json.dump(metas, f, indent=4, ensure_ascii=False)
