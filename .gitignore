@@ -1,0 +1,15 @@
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.pyc
+*.pdf
+*.zip
+old_dataset/
+src/data/pretrained_models/
+src/pretrained_models/
+logs/
+.DS_Store
