@@ -9,8 +9,8 @@ from tqdm import tqdm
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, classification_report
 from tensorboardX import SummaryWriter
 
-learning_rate = 2e-5
-epoch_num = 200
+learning_rate = 1.1e-5
+epoch_num = 150
 split_rate = 0.85
 split_item = False # whether to split dataset by items or not
 
@@ -201,10 +201,10 @@ if __name__ == "__main__" :
 	alpha = (1 / (1 + torch.log(torch.tensor(ratio / ratio.min())))) ** 2
 	alpha /= alpha.sum()
 	# criterion = models.CriterionFunc(class_num=data.TONE_VOCAB_SIZE)
-	criterion = models.MultiClassCriterionFunc(alpha=alpha)
-	# criterion = nn.CrossEntropyLoss()
+	# criterion = models.MultiClassCriterionFunc(alpha=alpha)
+	criterion = nn.CrossEntropyLoss()
 	optimizer = optim.AdamW(model.parameters(), lr=learning_rate, amsgrad=True)
-	sceduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epoch_num, eta_min=learning_rate / 50)
+	sceduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200, eta_min=learning_rate / 100)
 	# sceduler = None
 
 	bst_model, bst_metric = None, None

@@ -13,7 +13,7 @@ class Dataset(torch.utils.data.Dataset) :
 		global all_items
 		if all_items is None :
 			all_items = os.listdir(data_dir)
-			random.seed(114)
+			random.seed(42)
 			random.shuffle(all_items)
 		split_index = int(len(all_items) * split)
 		if train :
