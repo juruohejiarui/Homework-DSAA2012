@@ -196,7 +196,7 @@ if __name__ == "__main__" :
 	train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=64, shuffle=True, collate_fn=data.collate_fn)
 	val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=64, shuffle=False, collate_fn=data.collate_fn)
 
-	model = models.EvalModel(tone_vocab_size=data.TONE_VOCAB_SIZE).to(models.device)
+	model = models.ToneModel(tone_vocab_size=data.TONE_VOCAB_SIZE).to(models.device)
 	# convert ratio to alpha of focal loss
 	alpha = (1 / (1 + torch.log(torch.tensor(ratio / ratio.min())))) ** 2
 	alpha /= alpha.sum()
@@ -204,8 +204,8 @@ if __name__ == "__main__" :
 	# criterion = models.MultiClassCriterionFunc(alpha=alpha)
 	criterion = nn.CrossEntropyLoss()
 	optimizer = optim.AdamW(model.parameters(), lr=learning_rate, amsgrad=True)
-	sceduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200, eta_min=learning_rate / 100)
-	# sceduler = None
+	# sceduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200, eta_min=learning_rate / 100)
+	sceduler = None
 
 	bst_model, bst_metric = None, None
 

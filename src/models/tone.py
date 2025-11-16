@@ -11,6 +11,10 @@ class EmbedLSTM(nn.Module) :
 			   dropout : float = 0.5) :
 		super(EmbedLSTM, self).__init__()
 		self.tone_emb = nn.Embedding(tone_vocab_size + 1, tone_embed_size, padding_idx=0)
+		# self.pitc_emb = nn.Sequential(
+			# nn.Linear(1, pitc_embed_size),
+			# nn.RReLU()
+		# )
 		self.pitc_emb = nn.Embedding(  # pitch embedding
 			128 + 1, pitc_embed_size, padding_idx=0)  #
 
@@ -37,7 +41,7 @@ class EmbedLSTM(nn.Module) :
 			nn.Linear(lstm_hidden_size * 2, fc_hidden_size),
 			nn.RReLU(),
 			nn.Linear(fc_hidden_size, tone_vocab_size),
-			nn.RReLU()
+			# nn.RReLU()
 		)
 	
 	def forward(self, 
@@ -45,7 +49,7 @@ class EmbedLSTM(nn.Module) :
 			 prev_pitc : torch.Tensor, 
 			 prev_tone : torch.Tensor, 
 			 curr_durr : torch.Tensor, 
-			 curr_pits : torch.Tensor, 
+			 curr_pitc : torch.Tensor, 
 			 prev_mask : torch.Tensor, 
 			 curr_mask : torch.Tensor) :
 		B, currL, _ = curr_durr.shape
@@ -54,8 +58,10 @@ class EmbedLSTM(nn.Module) :
 		# print("prev_note:", prev_note.shape)
 		# print("curr_note:", curr_note.shape)
 
-		curr_pitc_st = self.pitc_emb(curr_pits[:, :, 0])
-		curr_pitc_ed = self.pitc_emb(curr_pits[:, :, 1])
+		# curr_pitc_st = self.pitc_emb(curr_pits[:, :, 0].unsqueeze(-1) / 128)
+		# curr_pitc_ed = self.pitc_emb(curr_pits[:, :, 1].unsqueeze(-1) / 128)
+		curr_pitc_st = self.pitc_emb(curr_pitc[:, :, 0])
+		curr_pitc_ed = self.pitc_emb(curr_pitc[:, :, 1])
 
 		# normalize duration for each sequence
 		curr_durr = curr_durr / (curr_durr.sum(dim=2, keepdim=True) + 1e-8)
@@ -70,6 +76,8 @@ class EmbedLSTM(nn.Module) :
 		curr_lstm_out, _ = nn.utils.rnn.pad_packed_sequence(curr_lstm_out, batch_first=True)
 
 		prev_tone_emb = self.tone_emb(prev_tone)
+		# prev_pitc_st = self.pitc_emb(prev_pitc[:, :, 0].unsqueeze(-1) / 128)
+		# prev_pitc_ed = self.pitc_emb(prev_pitc[:, :, 1].unsqueeze(-1) / 128)
 		prev_pitc_st = self.pitc_emb(prev_pitc[:, :, 0])
 		prev_pitc_ed = self.pitc_emb(prev_pitc[:, :, 1])
 

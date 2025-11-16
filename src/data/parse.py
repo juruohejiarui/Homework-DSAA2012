@@ -5,16 +5,35 @@ from tqdm import tqdm
 
 MAX_PITCH = 46
 TONE_VOCAB_SIZE = 4
-PREV_SIZE = 10
+PREV_SIZE = 3
+
+map_9to6 = {
+	'1': 1,
+	'2': 2,
+	'3': 3,
+	'4': 4,
+	'5': 5,
+	'6': 6,
+	'7': 1,
+	'8': 3,
+	'9': 6
+}
 
 def to0243(tones : np.ndarray) -> np.ndarray :
-	map0243 = np.zeros(tones.shape, dtype=np.int64)
+	map0243 = np.ones(tones.shape, dtype=np.int64) * TONE_VOCAB_SIZE
+	tones = np.array([map_9to6[str(tone)] for tone in tones])
+	# 3
 	map0243[tones == 1] = 0
 	map0243[tones == 2] = 0
+	# 4
 	map0243[tones == 3] = 1
 	map0243[tones == 5] = 1
+	# 0
 	map0243[tones == 4] = 2
+	# 2
 	map0243[tones == 6] = 3
+	if max(map0243) == TONE_VOCAB_SIZE :
+		print("Warning: tone outside 1-6 found:", tones, " mapped to", map0243)
 	return map0243
 
 class DataItem:
@@ -43,6 +62,8 @@ class DataItem:
 	
 	def getConcatPrev(self) -> tuple[np.ndarray, np.ndarray] :
 		# give up the first segement if too long
+		if PREV_SIZE == 0 :
+			return self.prev_durr, self.prev_pitc, self.prev_tone
 		if (self.prev_tone == TONE_VOCAB_SIZE).sum() > PREV_SIZE :
 			pos = 0
 			while self.prev_tone[pos] != TONE_VOCAB_SIZE :
@@ -65,10 +86,12 @@ def parse_pitch(pit_str : str) -> int :
 	if pit_str.endswith('-') : shift = -1
 	elif pit_str.endswith('+') : shift = 1
 	base_pit_str = pit_str.rstrip('+-')
+	def toreal(x : int) :
+		return x - 2 if x >= 2 else x + 5
 	if ord(base_pit_str[0]) >= ord('A') and ord(base_pit_str[0]) <= ord('G') :
-		base_pit = ord(base_pit_str[0]) - ord('A') + 1
+		base_pit = toreal(ord(base_pit_str[0]) - ord('A')) + 1
 	elif ord(base_pit_str[0]) >= ord('a') and ord(base_pit_str[0]) <= ord('g') :
-		base_pit = ord(base_pit_str[0]) - ord('a') + 1 + 7
+		base_pit = toreal(ord(base_pit_str[0]) - ord('a')) + 1 + 7
 	else :
 		assert False, f"Invalid pitch string: {pit_str}"
 	if len(base_pit_str) > 1 :
@@ -82,7 +105,10 @@ def parse_pitch(pit_str : str) -> int :
 		shift_base = 0
 	return (shift_base + base_pit) * 2 + shift + 66
 
-def parse_note(note_str : str, tot : int) -> int :
+print(parse_pitch('C'), parse_pitch('C+'), parse_pitch('G'), parse_pitch('A'), parse_pitch('B'), 
+	  parse_pitch('c'), parse_pitch('a'), parse_pitch('g'), parse_pitch('gg'), parse_pitch('c'))
+
+def parse_note(note_str : str, tot : int) -> tuple[int, int] :
 	# remove any '[' ']' '(' ')' and 'P' and '.'
 	remove_chr = ['[', ']', '(', ')', 'P', '.', '{', '}', '_', 'J', 'L', 'q']
 	for ch in remove_chr :
@@ -197,6 +223,15 @@ def parse_krn(file_path: str) -> list[DataItem] :
 				cur_sentence = None
 
 	return sentences
+
+# assume this note is on C4 (MIDI 60)
+def parse_notelist(notes : list[int]) -> np.array :
+	note_list = []
+	base = parse_pitch('C')
+	for note in notes :
+		note_pitch = (note - 1) * 2 + base
+		note_list.append(note_pitch)
+	return np.array([note_list, note_list], dtype=np.int64).T
 	
 if __name__ == "__main__" :
 	items = os.listdir("./dataset/Humdrum-files/")

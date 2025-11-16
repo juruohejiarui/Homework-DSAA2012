@@ -12,4 +12,5 @@ old_dataset/
 src/data/pretrained_models/
 src/pretrained_models/
 logs/
+src/ckpts/
 .DS_Store

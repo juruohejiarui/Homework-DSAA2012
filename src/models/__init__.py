@@ -1,6 +1,6 @@
-from .eval import EmbedLSTM as EvalModel
+from .tone import EmbedLSTM as ToneModel
 from .device import device
 from .criterion import FocalLoss as CriterionFunc
 from .criterion import MultiClassFocalLossWithAlpha as MultiClassCriterionFunc
 
-__all__ = ['EvalModel', 'SimpleEvalModel', 'device', 'CriterionFunc', 'MultiClassCriterionFunc']
+__all__ = ['ToneModel', 'device', 'CriterionFunc', 'MultiClassCriterionFunc']
