@@ -3,7 +3,7 @@ import os
 import numpy as np
 from tqdm import tqdm
 
-MAX_PITCH = 46
+MAX_PITCH = 48
 TONE_VOCAB_SIZE = 4
 PREV_SIZE = 3
 
@@ -23,89 +23,107 @@ def to0243(tones : np.ndarray) -> np.ndarray :
 	map0243 = np.ones(tones.shape, dtype=np.int64) * TONE_VOCAB_SIZE
 	tones = np.array([map_9to6[str(tone)] for tone in tones])
 	# 3
-	map0243[tones == 1] = 0
-	map0243[tones == 2] = 0
+	map0243[tones == 1] = 3
+	map0243[tones == 2] = 3
 	# 4
-	map0243[tones == 3] = 1
-	map0243[tones == 5] = 1
-	# 0
-	map0243[tones == 4] = 2
+	map0243[tones == 3] = 2
+	map0243[tones == 5] = 2
 	# 2
-	map0243[tones == 6] = 3
+	map0243[tones == 6] = 1
+	# 0
+	map0243[tones == 4] = 0
 	if max(map0243) == TONE_VOCAB_SIZE :
 		print("Warning: tone outside 1-6 found:", tones, " mapped to", map0243)
 	return map0243
 
 class DataItem:
-	def __init__(self, note : list[list[int, str]], text : list[str], jyut : list[str], prev : tuple[np.ndarray, np.ndarray, np.ndarray]) :
-		self.curr_note : np.ndarray = []
+	def __init__(self, note : list[list[int, int]], text : list[str], jyut : list[str]) :
+		curr_note : np.ndarray = []
 		self.text = text
 		self.curr_tone : np.ndarray = []
 		
 		for note_seq in note :
 			if len(note_seq) == 1 :
-				self.curr_note.append((note_seq[0][0] / 2, note_seq[0][0] / 2, note_seq[0][1], note_seq[0][1]))
-			elif len(note_seq) > 2 :
-				# get max dur and second max dur
-				sorted_seq = sorted(note_seq, key=lambda x: x[0], reverse=True)
-				self.curr_note.append((sorted_seq[0][0], sorted_seq[1][0], sorted_seq[0][1], sorted_seq[1][1]))
+				curr_note.append((note_seq[0][0], note_seq[0][1]))
 			else :
-				self.curr_note.append((note_seq[0][0], note_seq[1][0], note_seq[0][1], note_seq[1][1]))
+				# get pitc with max duration
+				max_dur = -1
+				max_pit = 128
+				tot_dur = 0
+				for dur, pit in note_seq :
+					if dur > max_dur :
+						max_dur = dur
+						max_pit = pit
+					tot_dur += dur
+				curr_note.append((tot_dur, max_pit))
 
-		self.curr_note = np.array([(dur1, dur2, pits, pite) for dur1, dur2, pits, pite in self.curr_note])
-		self.curr_durr = np.array([[dur1, dur2] for dur1, dur2, _, _ in self.curr_note], dtype=np.float32)
-		self.curr_pitc = np.array([[pits, pite] for _, _, pits, pite in self.curr_note], dtype=np.int64)
+		curr_note = np.array([(dur, pitc) for dur, pitc in curr_note])
+		self.text = text
+		self.curr_durr = np.array([durr for durr, _ in curr_note], dtype=np.float32)
+		self.curr_pitc = np.array([pitc for _, pitc in curr_note], dtype=np.int64)
+
+		assert len(self.curr_pitc) == 1 or abs(self.curr_pitc[1] - self.curr_pitc[0]) <= 24, f"Adjacent pitch difference too large: {self.curr_pitc} in text {self.text}"
 
 		self.curr_tone = to0243(np.array([int(jyutone[-1]) for jyutone in jyut], dtype=np.int64))
 
-		self.prev_durr, self.prev_pitc, self.prev_tone = prev
-	
-	def getConcatPrev(self) -> tuple[np.ndarray, np.ndarray] :
-		# give up the first segement if too long
-		if PREV_SIZE == 0 :
-			return self.prev_durr, self.prev_pitc, self.prev_tone
-		if (self.prev_tone == TONE_VOCAB_SIZE).sum() > PREV_SIZE :
-			pos = 0
-			while self.prev_tone[pos] != TONE_VOCAB_SIZE :
-				pos += 1
-			return \
-				np.concatenate([self.prev_durr[pos + 1 : ], np.array([[0, 0]]), self.curr_durr], axis=0), \
-				np.concatenate([self.prev_pitc[pos + 1 : ], np.array([[0, 0]]), self.curr_pitc], axis=0), \
-				np.concatenate([self.prev_tone[pos + 1 : ], np.array([4]), self.curr_tone], axis=0)
-		else :
-			return \
-				np.concatenate([self.prev_durr, np.array([[0, 0]]), self.curr_durr], axis=0), \
-				np.concatenate([self.prev_pitc,  np.array([[0, 0]]), self.curr_pitc], axis=0), \
-				np.concatenate([self.prev_tone, np.array([4]), self.curr_tone], axis=0)
-	
-	def __str__(self):
-		return f"notes={self.curr_note}, text={self.text}, tones={self.curr_tone})"
-	
-def parse_pitch(pit_str : str) -> int :
-	shift = 0
-	if pit_str.endswith('-') : shift = -1
-	elif pit_str.endswith('+') : shift = 1
-	base_pit_str = pit_str.rstrip('+-')
-	def toreal(x : int) :
-		return x - 2 if x >= 2 else x + 5
-	if ord(base_pit_str[0]) >= ord('A') and ord(base_pit_str[0]) <= ord('G') :
-		base_pit = toreal(ord(base_pit_str[0]) - ord('A')) + 1
-	elif ord(base_pit_str[0]) >= ord('a') and ord(base_pit_str[0]) <= ord('g') :
-		base_pit = toreal(ord(base_pit_str[0]) - ord('a')) + 1 + 7
-	else :
-		assert False, f"Invalid pitch string: {pit_str}"
-	if len(base_pit_str) > 1 :
-		# for 'a' to 'g' , shift by 8
-		# for 'A' to 'G' , shift by -7
-		if ord(base_pit_str[0]) >= ord('a') and ord(base_pit_str[0]) <= ord('g') :
-			shift_base = 7
-		else :
-			shift_base = -7
-	else :
-		shift_base = 0
-	return (shift_base + base_pit) * 2 + shift + 66
+	def setWhole(self, whole) :
+		self.prev_durr, self.prev_pitc, self.prev_tone = whole
+	def normalize(self) :
+		curr_pitc_min = self.curr_pitc[self.curr_pitc > 0].min()
+		curr_pitc = self.curr_pitc - curr_pitc_min + 1
+		curr_pitc_d = np.zeros((curr_pitc.shape[0], 6), dtype=np.int64)
+		curr_pitc_d[1:, 0] = (curr_pitc[1:] - curr_pitc[:-1]) // 12 + 3
+		curr_pitc_d[:-1, 1] = (curr_pitc[:-1] - curr_pitc[1:]) // 12 + 3
+		curr_pitc_d[:, 2] = (curr_pitc - curr_pitc.min()) // 12 + 3
+		curr_pitc_d[1:, 3] = (curr_pitc[1:] - curr_pitc[:-1]) % 12 + 11
+		curr_pitc_d[:-1, 4] = (curr_pitc[:-1] - curr_pitc[1:]) % 12 + 11
+		curr_pitc_d[:, 5] = (curr_pitc - curr_pitc.min()) % 12
+		self.curr_pitc = np.concatenate([curr_pitc.reshape((-1, 1)), curr_pitc_d], axis=-1)
+		
+		prev_pitc_min = self.prev_pitc[self.prev_pitc > 0].min()
+		prev_pitc = self.prev_pitc.copy()
+		prev_pitc[self.prev_pitc > 0] = self.prev_pitc[self.prev_pitc > 0] - prev_pitc_min + 1
+		prev_pitc_d = np.zeros((prev_pitc.shape[0], 6), dtype=np.int64)
+		prev_pitc_d[1:, 0] = (prev_pitc[1:] - prev_pitc[:-1]) // 12 + 3
+		prev_pitc_d[:-1, 1] = (prev_pitc[:-1] - prev_pitc[1:]) // 12 + 3
+		prev_pitc_d[:, 2] = (prev_pitc - prev_pitc.min()) // 12 + 3
+		prev_pitc_d[1:, 3] = (prev_pitc[1:] - prev_pitc[:-1]) % 12 + 11
+		prev_pitc_d[:-1, 4] = (prev_pitc[:-1] - prev_pitc[1:]) % 12 + 11
+		prev_pitc_d[:, 5] = (prev_pitc - prev_pitc.min()) % 12
+		self.prev_pitc = np.concatenate([prev_pitc.reshape((-1, 1)), prev_pitc_d], axis=-1)
 
-print(parse_pitch('C'), parse_pitch('C+'), parse_pitch('G'), parse_pitch('A'), parse_pitch('B'), 
+		assert self.curr_pitc.min() >= 0 and self.prev_pitc.min() >= 0, f"Pitch normalization error: pitch <= 0 found. {self.curr_pitc}, {self.prev_pitc}"
+		assert self.curr_pitc[:, 0].max() <= MAX_PITCH and self.prev_pitc[:, 0].max() <= MAX_PITCH, f"Pitch normalization error: pitch > MAX_PITCH found. {self.curr_pitc}, {self.prev_pitc} {self.text}"
+		assert self.curr_pitc[:, 1:4].max() < 6 and self.prev_pitc[:, 1:4].max() < 6, f"Pitch normalization error: pitch delta octave out of range. {self.curr_pitc}, {self.prev_pitc} {self.text}"
+		assert self.curr_pitc[:, 4:].max() < 24 and self.prev_pitc[:, 4:].max() < 24, f"Pitch normalization error: pitch delta in octave out of range. {self.curr_pitc}, {self.prev_pitc} {self.text}"
+
+	def __str__(self):
+		return f"notes={self.curr_pitc} {self.curr_durr}, text={self.text}, tones={self.curr_tone})"
+def parse_pitch(pit_str : str) -> int :
+	assert 'r' not in pit_str and 'R' not in pit_str, "Rest note found in parse_pitch"
+	main_pit = pit_str[0]
+	shift_pit = pit_str[-1] if pit_str[-1] in ['#', '-'] else ''
+	pit_str = pit_str.rstrip('#-')
+	oct_shift = 0
+	if len(pit_str) == 2 :
+		if 'A' <= pit_str[0] <= 'G' :
+			oct_shift = -12
+		else :
+			oct_shift = 12 * 2
+	else :
+		if 'a' <= pit_str <= 'g' :
+			oct_shift = 12
+	
+	# use map to get pitch
+	base_map = {
+		'C': 60, 'D': 62, 'E': 64, 'F': 65, 'G': 67, 'A': 69, 'B': 71
+	}
+	shift_map = {
+		'#': 1, '-': -1, '': 0
+	}
+	return base_map[main_pit.upper()] + shift_map[shift_pit] + oct_shift
+
+print(parse_pitch('C'), parse_pitch('C#'), parse_pitch('G'), parse_pitch('A'), parse_pitch('B'), 
 	  parse_pitch('c'), parse_pitch('a'), parse_pitch('g'), parse_pitch('gg'), parse_pitch('c'))
 
 def parse_note(note_str : str, tot : int) -> tuple[int, int] :
@@ -132,7 +150,7 @@ def parse_note(note_str : str, tot : int) -> tuple[int, int] :
 		assert False, f"Duration is zero in note string: {note_str}"
 	return (dur, pit)
 
-def parse_sentence(tpls : list[tuple[str, str, str, int]], prev : tuple) -> DataItem :
+def parse_sentence(tpls : list[tuple[str, str, str, int]]) -> DataItem :
 	notes : list[list[tuple[int, int]]] = []
 	texts : list[str] = []
 	jyuts : list[str] = []
@@ -167,7 +185,7 @@ def parse_sentence(tpls : list[tuple[str, str, str, int]], prev : tuple) -> Data
 			merged_seq.append((cur_dur, cur_pit))
 		merged_seq = [(dur, parse_pitch(pit)) for dur, pit in merged_seq]
 		merge_notes.append(merged_seq)
-	return DataItem(merge_notes, texts, jyuts, prev)
+	return DataItem(merge_notes, texts, jyuts)
 
 def parse_krn(file_path: str) -> list[DataItem] :
 	doc : kp.Document
@@ -196,11 +214,9 @@ def parse_krn(file_path: str) -> list[DataItem] :
 			continue
 		tpls.append((tks[kern_pos], tks[text_pos], tks[jyut_pos], cur_tot))
 	
-	sentences = []
+	sentences : list[DataItem] = []
 	cur_sentence = None
-	prev_item : DataItem = None
 	for tpl in tpls :
-		note = tpl[0].removeprefix('{').removesuffix('}').removeprefix('.')
 		if tpl[0].startswith('*') :
 			continue
 		if tpl[0][0] == '{' :
@@ -212,26 +228,40 @@ def parse_krn(file_path: str) -> list[DataItem] :
 		if tpl[0][-1] == '}' :
 			# end a sentence
 			if cur_sentence is not None :
-				if prev_item is None :
-					prev_durr, prev_pitc, prev_tone = np.array([[0, 0]], dtype=np.float32), np.array([[0, 0]], dtype=np.int64), np.array([4], dtype=np.int64)
-				else :
-					prev_durr, prev_pitc, prev_tone = prev_item.getConcatPrev()
-				item = parse_sentence(cur_sentence, (prev_durr, prev_pitc, prev_tone))
+				item = parse_sentence(cur_sentence)
 				if item is not None :
 					sentences.append(item)
-					prev_item = item
 				cur_sentence = None
-
+	
+	# get whole note info for each sentence
+	whole_durr = []
+	whole_pitc = []
+	whole_tone = []
+	for i in range(len(sentences)) :
+		whole_durr.append(np.zeros(1, dtype=np.float32))
+		whole_durr.append(sentences[i].curr_durr)
+		whole_pitc.append(np.zeros(1, dtype=np.int64))
+		whole_pitc.append(sentences[i].curr_pitc)
+		whole_tone.append(np.array([TONE_VOCAB_SIZE], dtype=np.int64))
+		whole_tone.append(sentences[i].curr_tone)
+	
+	for i in range(len(sentences)) :
+		posL = max(0, (i - PREV_SIZE) * 2 + 1)
+		posR = min(len(whole_durr), (i + PREV_SIZE) * 2 + 2)
+		inte_durr = np.concatenate(whole_durr[posL : posR], axis=0)
+		inte_pitc = np.concatenate(whole_pitc[posL : posR], axis=0)
+		inte_tone = np.concatenate(whole_tone[posL : posR], axis=0)
+		sentences[i].setWhole((inte_durr, inte_pitc, inte_tone))
+		sentences[i].normalize()
+		
 	return sentences
 
 # assume this note is on C4 (MIDI 60)
-def parse_notelist(notes : list[int]) -> np.array :
+def parse_notelist(notes : list[str]) -> np.array :
 	note_list = []
-	base = parse_pitch('C')
-	for note in notes :
-		note_pitch = (note - 1) * 2 + base
-		note_list.append(note_pitch)
-	return np.array([note_list, note_list], dtype=np.int64).T
+	for note_str in notes :
+		note_list.append([(1, parse_pitch(note_str))])
+	return np.array(note_list)
 	
 if __name__ == "__main__" :
 	items = os.listdir("./dataset/Humdrum-files/")

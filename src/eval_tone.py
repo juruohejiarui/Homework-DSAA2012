@@ -1,68 +1,59 @@
 import torch
 import models
 import data
+import numpy as np
 
 if __name__ == "__main__":
 	print("Eval Tone Module")
 	
 	model = models.ToneModel(data.TONE_VOCAB_SIZE)
-	model.load_state_dict(torch.load("./ckpts/best_tone_model.pth"))
+	model.load_state_dict(torch.load("./ckpts/tone_model_best.pth"))
 	model.eval()
 	
 	model = model.to(models.device)
+
+	# curr_notes = ['c', 'c', 'B', 'B', 'G', 'C', 'G'] # 她说 1 should be 3 3 3 3 4 0 3/4
+	# curr_notes = ['c', 'c', 'B', 'B', 'G', 'C', 'A'] # 她说 2 should be 3 3 3 3 4 0 3
+	# curr_notes = ['c', 'c', 'B', 'B', 'c', 'd', 'd'] # 她说 3 should be 4 4 2 2 4 3 3
+	# curr_notes = ['c', 'c', 'B', 'B', 'c', 'd', 'd', 'c', 'e'] # 她说 4 should be 4 4 2 2 4 3 3 4 3
+	# curr_notes = ['d', 'e', 'f', 'e', 'f', 'e', 'f'] # 她说 5 should be 0 2 4 2 4 2 4
+	# curr_notes = ['B', 'A', 'G', 'A', 'B'] # 她说 6 should be 3 3 4 3 3
+	# curr_notes = ['e', 'f', 'g', 'c', 'b'] # 她说 7 should be 2 4 3 0/4 3
+	# curr_notes = ['d', 'e', 'f', 'e', 'f', 'e', 'f', 'g', 'e'] # 她说 7 should be 0 2 4 2 4 2 4 3 2/3/4
+	# curr_notes = ['E', 'D', 'C', 'G'] # 开不了口 1 # should be 4 2 0 3
+	# curr_notes = ['E', 'G', 'B', 'A', 'B', 'A', 'A'] # 开不了口 2 # should be 0/2 4 3 4 3 (4 4)/(3 3)
+	# curr_notes = ['A', 'B', 'A', 'A', 'A', 'A', 'A', 'G'] # 开不了口 3 # should be 4 3 3 3 3 3 3 3/4
+	# curr_notes = ['D', 'D', 'F', 'G', 'C', 'C', 'C', 'C'] # 开不了口 4 # should be (0 0)/(2 2) 4 3 (4 4 4 4)/(0 0 0 0)
+	# curr_notes = ['E', 'G', 'B', 'A', 'B', 'B', 'B'] # 开不了口 5 # should be 0/2 4 3 3 (3 3)/(4 4)
+	curr_notes = ['A', 'A', 'G', 'G', 'A', 'G'] # should be 3 3 (4 4)/(3 3) 3 4/3 or 2 2 0 0 2 0
+	# curr_notes = ['G', 'A', 'c', 'd', 'e', 'e', 'd', 'e'] # 千千阙歌 1 should be 0 2 4 3 3 4 3
+	# curr_notes = ['e', 'd', 'c', 'd', 'c', 'A', 'A'] # 千千阙歌 2 should be 3 3 4 3 3 2 2
+	# curr_notes = ['D', 'D', 'D', 'E', 'F'] # 千千阙歌 3 should be 0 0 0 2 4
+	# curr_notes = ['G', 'A', 'c', 'B', 'B', 'B', 'G', 'E'] # 千千阙歌 4 should be 0 2 3 3 3 3 4 2/0
+	# curr_notes = ['d', 'c', 'd', 'c', 'A', 'c', 'c'] # 千千阙歌 5 should be 3 4 3 4 2 4 4
+	# curr_notes = ['e', 'e', 'd', 'd', 'c', 'd', 'c', 'A'] # 千千阙歌 6 should be 3 3 3 3 4 3 (4 2)/(4 0)/(3 2)
+	# curr_notes = ['C', 'C', "G", 'G', 'A', 'A', 'G'] # 小星星 1 should be 0 0 4 4 3 3 4
+	# curr_notes = ['F', 'F', "E", 'E', 'D', 'D', 'C'] # 小星星 2 should be 3 3 3 3 3 3 4/3
+	# curr_notes = ['G', 'c', 'B', 'c'] # 必杀技 1 should be 0 4 2 4
+	# curr_notes = ['C', 'D', 'E', 'G', 'G'] # 必杀技 2 should be 0 0 2 (4 4)/(3 3)
+	curr_jyuts = ['1' for _ in range(len(curr_notes))]
+	curr_pitc = data.parse_notelist(curr_notes)
 	
-	# prev_notes = [[5,5], [8,8], [7,7], [8,8], [0, 0], [1, 1], [1, 1], [1, 1]]
-	# prev_tones = [0, 4, 3, 4, -1, 0, 0, 0]
-	# prev_notes = [[5,5], [8,8], [7,7], [8,8], [0, 0]]
-	# prev_tones = [0, 4, 3, 4, -1]
-	# prev_notes = [[5,5], [8,8], [7,7], [8,8], [0, 0]]
-	# prev_tones = [2, 1, 3, 1, 4]
-	# prev_notes = [[1, 1], [1, 1], [5, 5], [5, 5], [6, 6], [6, 6], [5, 5], [0, 0]]
-	# prev_tones = [0, 0, 4, 4, 3, 3, 4, -1]
-	prev_notes = [[0, 0]]
-	prev_tones = [-1]
-	map0243 = [3, 4, 0, 2]
-
-	# convert to indice of model
-	prev_tones = [map0243.index(tone) if tone in map0243 else 4 for tone in prev_tones]
-	print("Prev tones mapped:", prev_tones)
-	valid_indices = [i for i in range(len(prev_tones)) if prev_tones[i] != 4]
-
-	_, C_pitch = data.parse_note('4C', 1)
-	C_pitch = data.parse_pitch(C_pitch)
-	for i in range(len(valid_indices)) :
-		idx = valid_indices[i]
-		prev_notes[idx] = [(note - 1) * 2 + C_pitch for note in prev_notes[idx]]
-	print("Prev notes mapped:", prev_notes)
-	# prev_notes = [[0, 0]]
-	# prev_tones = [4]
-	prev_durr = torch.ones((1, len(prev_notes), 2), dtype=torch.float32).repeat(2, 1, 1).to(models.device)
-	prev_pitc = (torch.tensor(prev_notes)).unsqueeze(0).repeat(2, 1, 1).to(models.device)
-	prev_tone = torch.tensor(prev_tones).repeat(2, 1).to(models.device)
-
-	# curr_notes = [5, 6, 8, 9, 10, 10, 9, 10] # 千千阙歌 1
-	# curr_notes = [10, 9, 8, 9, 9, 6, 6] # 千千阙歌 2
-	# curr_notes = [1, 5, 6, 7, 5] # 必杀技 2
-	# curr_notes = [1, 1, 1, 1, 5, 6, 7, 5] # 必杀技 4
-	curr_notes = [1, 1, 5, 5, 6, 6, 5] # 小星星 1
-	# curr_notes = [5, 8, 7, 8] # 必杀技 1
-	# curr_notes = [4, 4, 3, 3, 2, 2, 1] # 小星星 2
-	# curr_notes = [1, 2, 3, 5, 5] # 必杀技 3
-	# curr_notes = [1, 2, 3, 3, 2, 3, 2, 1, 0, -1] # 明年今日 1
-	# curr_notes = [1, 2, 4, 6] # 明年今日 2
-	curr_durr = torch.ones((1, len(curr_notes), 2), dtype=torch.float32).repeat(2, 1, 1).to(models.device)
-	curr_pitch = torch.from_numpy(data.parse_notelist(curr_notes)).unsqueeze(0).repeat(2, 1, 1).to(models.device)
-	print("Curr notes mapped: ", curr_pitch.tolist())
-	prev_mask = torch.ones((1, len(prev_notes)), dtype=torch.bool).repeat(2, 1).to(models.device)
-	curr_mask = torch.ones((1, len(curr_notes)), dtype=torch.bool).repeat(2, 1).to(models.device)
-
-	print("shapes: ", curr_pitch.shape, curr_durr.shape, prev_pitc.shape, prev_durr.shape, prev_tone.shape)
-
-	logits = model(prev_durr, prev_pitc, prev_tone, curr_durr, curr_pitch, prev_mask, curr_mask)
-	
-	
-	preds = torch.argmax(logits, dim=-1)
+	item = data.DataItem(curr_pitc, "x", curr_jyuts)
+	item.setWhole((item.curr_durr, item.curr_pitc, np.zeros((len(item.curr_durr)))))
+	item.normalize()
+	curr_durr = torch.tensor(item.curr_durr, dtype=torch.float32).unsqueeze(0).to(models.device)
+	curr_pitc = torch.tensor(item.curr_pitc, dtype=torch.int32).unsqueeze(0).to(models.device)
+	curr_mask = torch.ones(item.curr_tone.shape, dtype=torch.bool).unsqueeze(0).to(models.device)
+	logits = model(
+		curr_durr, curr_pitc, None,
+		curr_durr, curr_pitc,
+		curr_mask, curr_mask,
+		)
+	map0243 = {0: 0, 1: 2, 2: 4, 3: 3}
+	preds = logits.argmax(dim=-1)
 	print("Predicted tones:", preds)
+	print("Predicted Probs:", torch.softmax(logits, dim=-1))
 	print("Mapped tones:", [map0243[pred.item()] for pred in preds[0]])
 	
 
