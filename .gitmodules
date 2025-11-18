@@ -1,3 +1,6 @@
-[submodule "src/dataset"]
-	path = src/dataset
+[submodule "src/dataset/Cantopop-corpus"]
+	path = src/dataset/Cantopop-corpus
 	url = https://github.com/jasonleeubc/Cantopop-corpus
+[submodule "src/dataset/hsd-dataset"]
+	path = src/dataset/hsd-dataset
+	url = https://github.com/hirabarahyt/hsd-dataset
