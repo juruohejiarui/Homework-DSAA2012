@@ -41,8 +41,8 @@ python train_tone.py
 Then generate dataset and train SFT lyrics model :
 
 ```bash
-python generate_lyrics_sft_data.py
-python train_lyrics_sft.py
+python gen_sft_data.py
+python train_sft.py
 ```
 
 Then generate dataset and use GRPO for further training :

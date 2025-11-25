@@ -13,4 +13,5 @@ src/data/pretrained_models/
 src/pretrained_models/
 logs/
 src/ckpts/
+src/dataset/*.json
 .DS_Store

@@ -7,12 +7,12 @@ if __name__ == "__main__":
 	print("Eval Tone Module")
 	
 	model = models.ToneModel(data.TONE_VOCAB_SIZE)
-	model.load_state_dict(torch.load("./ckpts/tone_model_best.pth"))
+	model.load_state_dict(torch.load("./ckpts/tone_model_final.pth"))
 	model.eval()
 	
 	model = model.to(models.device)
 
-	# curr_notes = ['c', 'c', 'B', 'B', 'G', 'C', 'G'] # 她说 1 should be 3 3 3 3 4 0 3/4
+	curr_notes = ['c', 'c', 'B', 'B', 'G', 'C', 'G'] # 她说 1 should be 3 3 3 3 4 0 3/4
 	# curr_notes = ['c', 'c', 'B', 'B', 'G', 'C', 'A'] # 她说 2 should be 3 3 3 3 4 0 3
 	# curr_notes = ['c', 'c', 'B', 'B', 'c', 'd', 'd'] # 她说 3 should be 4 4 2 2 4 3 3
 	# curr_notes = ['c', 'c', 'B', 'B', 'c', 'd', 'd', 'c', 'e'] # 她说 4 should be 4 4 2 2 4 3 3 4 3
@@ -33,15 +33,15 @@ if __name__ == "__main__":
 	# curr_notes = ['G', 'A', 'c', 'B', 'B', 'B', 'G', 'E'] # 千千阙歌 4 should be 0 2 3 3 3 3 4 2/0
 	# curr_notes = ['d', 'c', 'd', 'c', 'A', 'c', 'c'] # 千千阙歌 5 should be 3 4 3 4 2 4 4
 	# curr_notes = ['e', 'e', 'd', 'd', 'c', 'd', 'c', 'A'] # 千千阙歌 6 should be 3 3 3 3 4 3 (4 2)/(4 0)/(3 2)
-	curr_notes = ['G', 'A', 'B', 'B', 'A', 'B'] # 千千阙歌 7 should be 4 4 3 3 4 3 / 0 0 2 2 0 2
+	# curr_notes = ['G', 'A', 'B', 'B', 'A', 'B'] # 千千阙歌 7 should be 4 4 3 3 4 3 / 0 0 2 2 0 2
 	# curr_notes = ['C', 'C', "G", 'G', 'A', 'A', 'G'] # 小星星 1 should be 0 0 4 4 3 3 4
 	# curr_notes = ['F', 'F', "E", 'E', 'D', 'D', 'C'] # 小星星 2 should be 3 3 3 3 3 3 4/3
 	# curr_notes = ['G', 'c', 'B', 'c'] # 必杀技 1 should be 0 4 2 4
 	# curr_notes = ['C', 'D', 'E', 'G', 'G'] # 必杀技 2 should be 0 0 2 (4 4)/(3 3)
-	curr_notes = ['G', 'c', 'c', 'B', 'B', 'A', 'E', 'A'] # 小幸运 1 should be 2/0 3 3 3 3 (3 0 4)/(4 0 4)(3 2 3)
-	curr_notes = ['B', 'e', 'e', 'B', 'B', 'G', 'E', 'G'] # 小幸运 2 should be 2 3 3 3 3 (4 0 4/0)/(3 2 3/4)/(4 2 4)
-	curr_notes = ['e', 'G', 'd', 'e', 'G', 'd', 'e'] # 小幸运 3 should be 3 0 4/3 3 0 4/3 3
-	curr_notes = ['e', 'c', 'c', 'e', 'd', 'c'] # 小幸运 4 should be 3 4 4 3 3 4
+	# curr_notes = ['G', 'c', 'c', 'B', 'B', 'A', 'E', 'A'] # 小幸运 1 should be 2/0 3 3 3 3 (3 0 4)/(4 0 4)(3 2 3)
+	# curr_notes = ['B', 'e', 'e', 'B', 'B', 'G', 'E', 'G'] # 小幸运 2 should be 2 3 3 3 3 (4 0 4/0)/(3 2 3/4)/(4 2 4)
+	# curr_notes = ['e', 'G', 'd', 'e', 'G', 'd', 'e'] # 小幸运 3 should be 3 0 4/3 3 0 4/3 3
+	# curr_notes = ['e', 'c', 'c', 'e', 'd', 'c'] # 小幸运 4 should be 3 4 4 3 3 4
 	curr_jyuts = ['1' for _ in range(len(curr_notes))]
 	curr_pitc = data.parse_notelist(curr_notes)
 	print("Input pitches:", curr_pitc[:, 0, 1].tolist())

@@ -248,8 +248,8 @@ if __name__ == "__main__" :
 		ratio = data.get_ratio(train_dataset)
 	print(f"Train size: {train_size}, Val size: {val_size}")
 
-	train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=64, shuffle=True, collate_fn=data.collate_fn)
-	val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=64, shuffle=False, collate_fn=data.collate_fn)
+	train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=64, shuffle=True, collate_fn=data.tone_collate_fn)
+	val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=64, shuffle=False, collate_fn=data.tone_collate_fn)
 
 	model = models.ToneModel(tone_vocab_size=data.TONE_VOCAB_SIZE).to(models.device)
 	# convert ratio to alpha of focal loss
