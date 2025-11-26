@@ -21,6 +21,20 @@ def parse_args() :
 					 help='Path to save the generated grope data')
 	return parser.parse_args()
 
+def make_item(tone_seq : list[int]) -> str :
+	prompt_sys = data.template_prompt_sys
+	prompt_usr = data.template_prompt_usr.format(
+		prev_lyrics = [],
+		rhyme = "",
+		char_num = len(tone_seq),
+		pitches = tone_seq,
+	)
+	prompt = [
+		{"role": "system", "content": prompt_sys},
+		{"role": "user", "content": prompt_usr},
+	]
+	return dict(prompt=prompt)
+
 def parse_notation(note_path : str) -> list[str] :
 	with open(note_path, 'r', encoding='utf-8') as f :
 		lines = f.readlines()
@@ -72,8 +86,7 @@ def parse_notation(note_path : str) -> list[str] :
 			tone_seq = [int(map0243[tone]) for tone in pred_tone]
 			# print(f"Generated tone sequence for {note_path}: {tone_seq}")
 
-			subdataset.append(str(tone_seq))
-	
+			subdataset.append(make_item(tone_seq))	
 	return subdataset
 		
 	

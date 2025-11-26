@@ -20,14 +20,24 @@ def parse_args() :
 	parser.add_argument('--max_steps', type=int, default=1000)
 	parser.add_argument('--batch_size', type=int, default=4)
 	parser.add_argument('--lr', type=float, default=1e-5)
-	parser.add_argument('--max_new_tokens',type=int, default=64)
+	parser.add_argument('--max_new_tokens',type=int, default=32)
 	parser.add_argument('--top_p', type=float, default=0.95)
 	parser.add_argument('--temperature', type=float, default=0.9)
 
 	args = parser.parse_args()
 	return args
 
-def reward_fn()
+def format_reward_func(prompts, completions, completions_ids=None, **kwargs) -> list[float] : 
+	print(*completions, sep='\n---\n')
+	rewards = []
+	for prompt, completion in zip(prompts, completions) :
+		
+	while True : pass
+	
+
+def correct_reward_func(prompts, completions, completions_ids=None, **kwargs) -> list[float] :
+	pass
+
 def load_model(base_path : str, lora_path : str, trainable : bool = True) :
 	print(f'load lora model from {base_path} + {lora_path} ...')
 	base_model = AutoModelForCausalLM.from_pretrained(
@@ -44,10 +54,22 @@ def load_model(base_path : str, lora_path : str, trainable : bool = True) :
 		is_trainable=trainable,
 	)
 
+	for name, param in model.named_parameters() :
+		param.requires_grad = False
+	
 	if trainable :
-		model.print_trainable_parameters()
-	else :
-		model.eval()
+		for name, param in model.named_parameters() :
+			if "lora" in name.lower() :
+				param.requires_grad = True
+		
+		tot = 0
+		trainable = 0
+		for name, param in model.named_parameters() :
+			num_param = param.numel()
+			tot += num_param
+			if param.requires_grad :
+				trainable += num_param
+		print(f"Total parameters: {tot}, Trainable parameters: {trainable}, Ratio: {trainable / tot:.6f}")		
 	
 	return model
 
@@ -76,5 +98,39 @@ if __name__ == "__main__" :
 	dataloader = torch.utils.data.DataLoader(dataset, args.batch_size, shuffle=False, collate_fn=data.grpo_collate_fn)
 
 	grpo_cfg = GRPOConfig(
+		bf16=True,
+		per_device_train_batch_size=args.batch_size,
+		gradient_accumulation_steps=8,
+		learning_rate=args.lr,
+		num_train_epochs=2,
+		lr_scheduler_type='cosine',
+		warmup_ratio=0.05,
+		max_grad_norm=0.3,
+		logging_steps=20,
+		output_dir=args.output_path,
+		report_to='tensorboard',
+		logging_dir="logs/grpo",
+		max_prompt_length=512,
+		max_completion_length=args.max_new_tokens,
+		num_generations=8,
+		use_vllm=False,
+		shuffle_dataset=False,
 
+		temperature=args.temperature,
+		top_p=args.top_p,
+		repetition_penalty=1.0,
 	)
+
+	trainer = GRPOTrainer(
+		model=grpo_model,
+		processing_class=grpo_tokenizer,
+		reward_funcs=[
+			format_reward_func,
+			correct_reward_func
+		],
+		args=grpo_cfg,
+		train_dataset=dataset
+	)
+
+	trainer.train()
+	

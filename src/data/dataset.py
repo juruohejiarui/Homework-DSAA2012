@@ -8,6 +8,14 @@ import random
 import json
 from transformers import AutoTokenizer
 
+template_prompt_sys = """你是一个专业的粤语作词家"""
+template_prompt_usr = \
+"""根据给定的Pitches，生成与之适配且相同长度的歌词，每个Pitch对应一个繁体中文字符。此外，生成的歌词要与给定的Previous lyrics连贯。同时，生成的最后一个中文字符需要和给定的Rhyme押韵。
+Previous lyrics: {prev_lyrics}
+Rhyme: {rhyme}
+Character Nums: {char_num}
+Pitches: {pitches}"""
+
 all_items = None
 
 RANDOM_SEED = 42
@@ -55,47 +63,19 @@ class SFTDataset(torch.utils.data.Dataset) :
 	def __len__(self) :
 		return len(self.data)
 	def __getitem__(self, idx) :
-		item = self.data[idx]
-		system = item['system']
-		inst = item['instruction']
-		input = item['input']
-		answer = item['output']
-
-		prompt = (
-			 f"<system>\n{system}\n</system>\n\n"
-			f"<instruction>\n{inst}\n</instruction>\n\n"
-			f"<input>\n{input}\n</input>\n\n"
-			f"answer:"
-		)
-		# print(prompt, answer)
-		res = dict(prompt=prompt, answer=answer)
-		# print(res)
-		return res
+		return self.data[idx]
 	
 class GRPODataset(torch.utils.data.Dataset) :
 	def __init__(self, json_path : str, shuffle : bool = True) :
 		with open(json_path, "r", encoding="utf-8") as f :
 			songs = json.load(f)
-		# shuffle items and keep item in the same song on relative order
-		self.data : list[tuple[int, str]] = []
-		orders = []
-		for i in range(len(songs)) :
-			orders.extend([i] * songs[i]['tones'])
-		if shuffle :
-			random.seed(RANDOM_SEED)
-			random.shuffle(orders)
-		cur_idx = [0 for _ in range(len(songs))]
-		for order in orders :
-			song = songs[order]
-			item_idx = cur_idx[order]
-			cur_idx[order] += 1
-			self.data.append((order, song['items'[item_idx]]))
+		self.datas = songs
 		
 	def __len__(self) :
 		return len(self.data)
 
-	def __getitem__(self, idx) -> tuple[int, str] :
-		return self.data[idx]			
+	def __getitem__(self, idx) -> str :
+		return self.data[idx]
 	
 def tone_collate_fn(batch : list[DataItem]) :
 	batch_size = len(batch)

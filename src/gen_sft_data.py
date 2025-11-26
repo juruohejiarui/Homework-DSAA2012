@@ -1,31 +1,13 @@
-from data import DataItem, parse_krn
+from data import RANDOM_SEED, parse_krn, template_prompt_usr, template_prompt_sys
 import numpy as np
 import os
 import json
+import pandas as pd
+from datasets import Dataset, DatasetDict, Features, List
+import random
 from tqdm import tqdm
 
-template_system = """你是一个专业的粤语作词家"""
-template_inst = \
-"""根据给定的Pitches，生成与之适配且相同长度的歌词，每个Pitch对应一个繁体中文字符。此外，生成的歌词要与给定的Previous lyrics连贯。同时，生成的最后一个中文字符需要和给定的Rhyme押韵。
-Previous lyrics: {prev_lyrics}
-Rhyme: {rhyme}
-Character Nums: {char_num}
-"""
-template_input = """Pitches: {pitches}"""
-
 dataset : list[dict] = []
-
-def make_inst(prev_lyrics : list[str], rhyme : str, char_num : int) -> str :
-	return template_inst.format(
-        prev_lyrics = prev_lyrics,
-        rhyme = rhyme,
-        char_num = char_num,
-    )
-
-def make_input(pitches : list[int]) -> str :
-	return template_input.format(
-        pitches = pitches,
-    )
 
 def output_krn(filepath : str) :
 	que : list[str] = []
@@ -36,14 +18,20 @@ def output_krn(filepath : str) :
 		char_num = len(lyrics)
 		rhyme = lyrics[-1]
 
-		inst, input = make_inst(que, rhyme, char_num), make_input(pitch)
+		prompt_usr = template_prompt_usr.format(
+			prev_lyrics = que,
+			rhyme = rhyme,
+			char_num = char_num,
+			pitches = pitch,
+		)
+		prompt_sys = template_prompt_sys
 
-		dataset.append({
-			"system": template_system,
-			"instruction": inst,
-			"input": input,
-			"output": lyrics
-		})
+		prompt = [
+			{"role": "system", "content": prompt_sys},
+			{"role": "user", "content": prompt_usr},
+			{"role": "assistant", "content": lyrics}
+		]
+		dataset.append(dict(messages=prompt, num_turns=3))
 
 		que.append(lyrics)
 		if len(que) >= 10 :
@@ -56,7 +44,19 @@ if __name__ == "__main__" :
 		if not item.endswith(".krn") :
 			continue
 		output_krn(os.path.join(dir_path, item))
+
+	random.seed(RANDOM_SEED)
+
+	random.shuffle(dataset)
+	split_index = int(len(dataset) * 0.9)
+
+	train_dataset = dataset[:split_index]
+	eval_dataset = dataset[split_index :]
+
+	sft_path = "dataset/sft-train.json"
+	with open(sft_path, 'w', encoding='utf-8') as f :
+		json.dump(train_dataset, f, ensure_ascii=False, indent=4)
 	
-	sft_path = "dataset/sft.json"
-	with open(sft_path, "w", encoding="utf-8") as f :
-		json.dump(dataset, f, ensure_ascii=False, indent=4)
+	sft_path = "dataset/sft-eval.json"
+	with open(sft_path, 'w', encoding='utf-8') as f :
+		json.dump(eval_dataset, f, ensure_ascii=False, indent=4)
