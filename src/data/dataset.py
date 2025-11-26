@@ -55,27 +55,6 @@ class ToneDataset(torch.utils.data.Dataset) :
 
 	def __getitem__(self, idx) :
 		return self.data_items[idx]
-
-class SFTDataset(torch.utils.data.Dataset) :
-	def __init__(self, json_path : str) :
-		with open(json_path, "r", encoding="utf-8") as f :
-			self.data = json.load(f)
-	def __len__(self) :
-		return len(self.data)
-	def __getitem__(self, idx) :
-		return self.data[idx]
-	
-class GRPODataset(torch.utils.data.Dataset) :
-	def __init__(self, json_path : str, shuffle : bool = True) :
-		with open(json_path, "r", encoding="utf-8") as f :
-			songs = json.load(f)
-		self.datas = songs
-		
-	def __len__(self) :
-		return len(self.data)
-
-	def __getitem__(self, idx) -> str :
-		return self.data[idx]
 	
 def tone_collate_fn(batch : list[DataItem]) :
 	batch_size = len(batch)
@@ -114,56 +93,6 @@ def tone_collate_fn(batch : list[DataItem]) :
 		curr_masks[i, :curr_len] = 1
 
 	return prev_durr, prev_pitc, prev_tones, curr_durr, curr_pitc, curr_tones, prev_masks, curr_masks
-
-def sft_collate_fn(batch: list[dict], tokenizer: AutoTokenizer, max_length: int = 2048):
-	"""
-	batch: list of dicts each has keys 'prompt' and 'answer' (both str)
-	tokenizer: HF tokenizer (确保 tokenizer.pad_token 已设置)
-	返回: dict of tensors 可直接喂 Trainer.train()
-	"""
-	prompts = [b['prompt'] for b in batch]
-	answers = [b['answer'] for b in batch]
-
-	# 1) 全部合并的文本（prompt + answer），一次编码（保证 truncation/padding 一致）
-	concat_texts = [p + a for p, a in zip(prompts, answers)]
-	enc = tokenizer(
-		concat_texts,
-		padding=True,
-		truncation=True,
-		max_length=max_length,
-		return_tensors="pt",
-		add_special_tokens=True,
-	)
-
-	# 2) 计算每条 prompt 的 token 长度（使用相同的 max_length/truncation 保证一致）
-	#	这里 batch 处理 prompts，注意要用相同的 truncation/max_length
-	prompt_enc = tokenizer(
-		prompts,
-		padding=False,
-		truncation=True,
-		max_length=max_length,
-		add_special_tokens=False,
-	)
-	# prompt_enc['input_ids'] 是 list[list[int]]
-	prompt_lens = [len(x) for x in prompt_enc["input_ids"]]
-
-	# 3) 制作 labels：prompt 部分设为 -100，仅对 answer 部分计算 loss
-	labels = enc["input_ids"].clone()
-	seq_len = labels.size(1)
-	for i, plen in enumerate(prompt_lens):
-		# 防止 plen 超过 seq_len（truncation 情况），取 min 保护越界
-		cut = min(plen, seq_len)
-		if cut > 0:
-			labels[i, :cut] = -100
-
-	enc["labels"] = labels
-
-	return enc
-
-def grpo_collate_fn(batch : list[tuple[int, str]]) :
-	song_ids = [item[0] for item in batch]
-	tones_list = [item[1] for item in batch]
-	return song_ids, tones_list
 
 if __name__ == "__main__" :
 	dataset = ToneDataset("./dataset/Humdrum-files/")

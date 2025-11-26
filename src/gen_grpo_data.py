@@ -21,7 +21,7 @@ def parse_args() :
 					 help='Path to save the generated grope data')
 	return parser.parse_args()
 
-def make_item(tone_seq : list[int]) -> str :
+def make_item(tone_seq : list[int], song_id : int, pit_idx : int) -> str :
 	prompt_sys = data.template_prompt_sys
 	prompt_usr = data.template_prompt_usr.format(
 		prev_lyrics = [],
@@ -33,9 +33,9 @@ def make_item(tone_seq : list[int]) -> str :
 		{"role": "system", "content": prompt_sys},
 		{"role": "user", "content": prompt_usr},
 	]
-	return dict(prompt=prompt)
+	return dict(prompt=prompt, song_id=song_id, pit_idx=pit_idx)
 
-def parse_notation(note_path : str) -> list[str] :
+def parse_notation(note_path : str, song_idx : int) -> list[str] :
 	with open(note_path, 'r', encoding='utf-8') as f :
 		lines = f.readlines()
 	lines = [line.strip() for line in lines]
@@ -72,7 +72,7 @@ def parse_notation(note_path : str) -> list[str] :
 	subdataset : list[str] = []
 	# generate tone sequence
 	with torch.no_grad() :
-		for item in dataitems :
+		for idx, item in enumerate(dataitems) :
 			curr_durr = torch.tensor(item.curr_durr, dtype=torch.float32).unsqueeze(0).to(models.device)
 			curr_pitc = torch.tensor(item.curr_pitc, dtype=torch.int32).unsqueeze(0).to(models.device)
 			curr_mask = torch.ones(item.curr_tone.shape, dtype=torch.bool).unsqueeze(0).to(models.device)
@@ -86,7 +86,7 @@ def parse_notation(note_path : str) -> list[str] :
 			tone_seq = [int(map0243[tone]) for tone in pred_tone]
 			# print(f"Generated tone sequence for {note_path}: {tone_seq}")
 
-			subdataset.append(make_item(tone_seq))	
+			subdataset.append(make_item(tone_seq, song_idx, idx))	
 	return subdataset
 		
 	
@@ -102,11 +102,11 @@ if __name__ == "__main__" :
 
 	items = os.listdir(args.data_dir)
 
-	for item in tqdm(items) :
+	for idx, item in enumerate(tqdm(items)) :
 		if not item.endswith('.txt') :
 			continue
-		sub_dataset = parse_notation(os.path.join(args.data_dir, item))
-		dataset.append(dict(source=item, tones=sub_dataset))
+		sub_dataset = parse_notation(os.path.join(args.data_dir, item), idx)
+		dataset.extend(sub_dataset)
 
 	with open(args.output_path, 'w', encoding='utf-8') as f :
 		json.dump(dataset, f, ensure_ascii=False, indent=4)
