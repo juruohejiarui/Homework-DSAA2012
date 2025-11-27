@@ -23,6 +23,8 @@ def parse_args() :
 
 def make_item(tone_seq : list[int], song_id : int, pit_idx : int) -> str :
 	prompt_sys = data.template_prompt_sys
+	tone_seq : list[str] = [data.map_4toToken[tone] for tone in tone_seq]
+	tone_seq : str = "".join(tone_seq)
 	prompt_usr = data.template_prompt_usr.format(
 		prev_lyrics = [],
 		rhyme = "",
@@ -82,8 +84,7 @@ def parse_notation(note_path : str, song_idx : int) -> list[str] :
 				curr_mask, curr_mask,
 			)
 			pred_tone = torch.argmax(logits, dim=-1).squeeze(0).cpu().numpy().tolist()
-			map0243 = {0: '0', 1: '2', 2: '4', 3: '3'}
-			tone_seq = [int(map0243[tone]) for tone in pred_tone]
+			tone_seq = pred_tone
 			# print(f"Generated tone sequence for {note_path}: {tone_seq}")
 
 			subdataset.append(make_item(tone_seq, song_idx, idx))	

@@ -1,11 +1,15 @@
 import torch
 import argparse
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import (
+	AutoTokenizer, AutoModelForCausalLM,
+	Qwen2TokenizerFast,
+	Qwen2Model,
+)
 from peft import PeftModel, PeftConfig
 
 def parse_args() :
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--base_model", type=str, default="pretrained_models/Qwen3-4B-Instruct-2507",
+	parser.add_argument("--base_model", type=str, default="pretrained_models/Qwen2.5-7B-Instruct",
 		help="Path to the base model or model identifier from huggingface.co/models")
 	parser.add_argument("--lora_path", type=str, default="ckpts/sft_lora",
 		help="Path to the lora directory")
@@ -16,17 +20,19 @@ def parse_args() :
 if __name__ == "__main__" :
 	args = parse_args()
 
-	tokenizer = AutoTokenizer.from_pretrained(args.base_model, use_fast=False)
+	tokenizer : Qwen2TokenizerFast = AutoTokenizer.from_pretrained(args.lora_path, use_fast=False)
 	if tokenizer.pad_token_id is None :
 		tokenizer.pad_token = tokenizer.eos_token
 	
-	model = AutoModelForCausalLM.from_pretrained(
+	model : Qwen2Model = AutoModelForCausalLM.from_pretrained(
 		args.base_model,
 		trust_remote_code=True,
 		dtype=torch.bfloat16,
 		device_map="auto",
 		low_cpu_mem_usage=True,
 	)
+	if args.base_model.startswith("./pretrained_models/") or args.base_model.startswith("pretrained_models/") :
+		model.resize_token_embeddings(len(tokenizer))
 
 	peft_model = PeftModel.from_pretrained(
 		model,

@@ -19,6 +19,29 @@ map_9to6 = {
 	'9': 6
 }
 
+map_6to4 = {
+	1: 3,
+	2: 3,
+	3: 2,
+	4: 0,
+	5: 2,
+	6: 1
+}
+
+map_4toToken = {
+	0: '일',
+	1: '이',
+	2: '삼',
+	3: '사',
+}
+
+map_tokenTo4 = {
+	'일': 0,
+	'이': 1,
+	'삼': 2,
+	'사': 3,
+}
+
 def to0243(tones : np.ndarray) -> np.ndarray :
 	map0243 = np.ones(tones.shape, dtype=np.int64) * TONE_VOCAB_SIZE
 	tones = np.array([map_9to6[str(tone)] for tone in tones])

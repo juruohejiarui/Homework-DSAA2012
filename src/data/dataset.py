@@ -10,10 +10,17 @@ from transformers import AutoTokenizer
 
 template_prompt_sys = """你是一个专业的粤语作词家"""
 template_prompt_usr = \
-"""根据给定的Pitches，生成与之适配且相同长度的歌词，每个Pitch对应一个繁体中文字符。此外，生成的歌词要与给定的Previous lyrics连贯。同时，生成的最后一个中文字符需要和给定的Rhyme押韵。
+"""根据给定的Pitches，生成与Pitches适配且相同长度的歌词，每个Pitch对应一个繁体中文字符。此外，生成的歌词要与给定的Previous lyrics连贯。同时，生成的最后一个中文字符需要和给定的Rhyme押韵。
 Previous lyrics: {prev_lyrics}
 Rhyme: {rhyme}
 Character Nums: {char_num}
+Pitches: {pitches}"""
+template_prompt_usr_mask = \
+"""根据给定的Pitches，以及部分缺失的歌词（缺失的字用￥代替），补全￥位置，使整句歌词自然通顺。每个Pitch对应一个繁体中文字符。此外，生成的歌词要与给定的Previous lyrics连贯。同时，生成的最后一个中文字符需要和给定的Rhyme押韵。
+Previous lyrics: {prev_lyrics}
+Rhyme: {rhyme}
+Character Nums: {char_num}
+Lyrics: {masked_lyrics}
 Pitches: {pitches}"""
 
 all_items = None
