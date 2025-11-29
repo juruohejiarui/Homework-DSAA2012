@@ -12,7 +12,7 @@ from transformers import (
 	AutoModelForCausalLM,
 	get_linear_schedule_with_warmup
 )
-from datasets import load_dataset
+from datasets import load_dataset, concatenate_datasets
 from peft import LoraConfig, get_peft_model, TaskType
 from tqdm import tqdm
 from trl import SFTTrainer, SFTConfig
@@ -57,8 +57,8 @@ def setup_model_and_tokenizer(model_name: str, lora_r: int, lora_alpha: int, lor
 		num_param = param.numel()
 		tot += num_param
 		# 因为更新了embed,所以使其可以被训练
-		if "embed" in name:
-			print(f"Embedding: {name} - {num_param}")
+		if "embed" in name or "lm_head" in name:
+			print(f"Embedding/LM_head: {name} - {num_param}")
 			param.requires_grad = True
 		if param.requires_grad:
 			trainable += num_param
@@ -80,11 +80,10 @@ def train(
 	epochs: int,
 	lr: float,
 	weight_decay: float,
-	warmup_steps: int,
+	warmup_ratio: int,
 	gradient_accumulation_steps: int,
-	val_size : float = 0.1,
-	val_log_steps : int = 20,
-	cold_down_steps : int = 500,
+	log_step: int = 20,
+	eval_step: int = 1000,
 ):
 	os.makedirs(output_dir, exist_ok=True)
 
@@ -96,6 +95,9 @@ def train(
 		train_dataset = load_dataset("json", data_files=dataset_path[0])['train']
 		eval_dataset = load_dataset("json", data_files=dataset_path[1])['train']
 
+	emb_dataset = load_dataset("json", data_files="dataset/emb.json")['train']
+	train_dataset = concatenate_datasets([train_dataset, emb_dataset])
+
 	logging_dir = os.path.join("logs", os.path.basename(output_dir))
 
 	cfg = SFTConfig(
@@ -106,16 +108,16 @@ def train(
 		learning_rate=lr,
 		num_train_epochs=epochs,
 		lr_scheduler_type='cosine',
-		warmup_steps=warmup_steps,
+		warmup_ratio=warmup_ratio,
 		weight_decay=weight_decay,
-		max_grad_norm=0.1,
-		logging_steps=val_log_steps,
+		max_grad_norm=0.5,
+		logging_steps=log_step,
 		output_dir=output_dir,
 		report_to='tensorboard',
 		logging_dir=logging_dir,
 		gradient_checkpointing=False,
 		eval_strategy="steps" if eval_dataset is not None else "no",
-		eval_steps=cold_down_steps,
+		eval_steps=eval_step,
 		save_total_limit=3,
 	)
 
@@ -132,12 +134,6 @@ def train(
 	print("Saving merged model...")
 
 	trainer.save_model(args.output_dir)
-
-	# 保存合并后的模型权重
-	model = model.merge_and_unload()
-	model.save_pretrained(os.path.join(args.output_dir, "merged_model"))
-	tokenizer.save_pretrained(os.path.join(args.output_dir, "merged_model"))
-	print(f"Merged model saved to {os.path.join(args.output_dir, 'merged_model')}")
 
 
 # -------------------------
@@ -156,7 +152,7 @@ def parse_args():
 	p.add_argument("--epochs", type=int, default=3)
 	p.add_argument("--lr", type=float, default=2e-5)
 	p.add_argument("--weight_decay", type=float, default=0.0)
-	p.add_argument("--warmup_steps", type=int, default=50)
+	p.add_argument("--warmup_ratio", type=float, default=0.1)
 	p.add_argument("--gradient_accumulation_steps", type=int, default=1)
 
 	# LoRA 参数（可改）
@@ -167,6 +163,9 @@ def parse_args():
 	# 设备 / dtype
 	p.add_argument("--device", type=str, default="cuda")
 	p.add_argument("--use_bf16", default=True, action="store_true", help="尝试使用 bf16 加载模型（需硬件支持）")
+
+	p.add_argument("--eval_step", type=int, default=1000, help="评估间隔步数")
+	p.add_argument("--log_step", type=int, default=20, help="日志记录间隔步数")
 
 	return p.parse_args()
 
@@ -197,6 +196,8 @@ if __name__ == "__main__":
 		epochs=args.epochs,
 		lr=args.lr,
 		weight_decay=args.weight_decay,
-		warmup_steps=args.warmup_steps,
+		warmup_ratio=args.warmup_ratio,
 		gradient_accumulation_steps=args.gradient_accumulation_steps,
+		log_step=args.log_step,
+		eval_step=args.eval_step,
 	)

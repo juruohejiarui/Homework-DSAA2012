@@ -19,7 +19,7 @@ char_set = set()
 unmeet_char_set = set()
 
 # no need to split data, overfit is allowed for pre-sft stage
-output_path = "dataset/presft.json"
+output_path = "dataset/emb.json"
 
 random.seed(RANDOM_SEED)
 
@@ -71,10 +71,6 @@ def make_char_set() :
 	print(f"Total {len(char_set)} unique characters parsed.")
 	print("".join(list(char_set)[:100]) + "...")
 
-	print(f"Tone dictionary:")
-	for tone, chars in ext_dict.items() :
-		print(f"Tone {tone}: {chars}")
-
 	unmeet_char_set = char_set.copy()
 
 def make_item(word : str, jyut : str) -> dict :
@@ -107,7 +103,7 @@ def make_item(word : str, jyut : str) -> dict :
 		ext_chars = ext_dict[tones[0]][: 40] + random.sample(ext_dict[tones[0]][40: ], 10)
 		prompt_usr += "\n请额外提供0243音调相同的50个繁体汉字。"
 
-		prompt_assistant += "\n" + " ".join(ext_chars)
+		prompt_assistant += "\n" + ",".join(ext_chars)
 
 	prompt = [
 		{"role": "system", "content": prompt_sys},
@@ -115,6 +111,23 @@ def make_item(word : str, jyut : str) -> dict :
 		{"role": "assistant", "content": prompt_assistant},
 	]
 	return dict(messages=prompt, num_turns=3)
+
+def make_item2(tone : str) -> dict :
+	prompt_sys = template_prompt_sys
+	prompt_usr = \
+	"""请写出符合0243声调：{tone} 的繁体汉字50个。字符串形式返回汉字。""".format(
+		tone = tone,
+	)
+	ext_chars = ext_dict[tone][: 30] + random.sample(ext_dict[tone][30: ], 20)
+	prompt_assistant = ",".join(ext_chars)
+
+	prompt = [
+		{"role": "system", "content": prompt_sys},
+		{"role": "user", "content": prompt_usr},
+		{"role": "assistant", "content": prompt_assistant},
+	]
+	return dict(messages=prompt, num_turns=3)
+
 
 if __name__ == "__main__" :
 
@@ -135,6 +148,11 @@ if __name__ == "__main__" :
 		jyut = res[0][1]
 		item = make_item(ch, jyut)
 		if item is not None :
+			dataset.append(item)
+	
+	for toneToken in ext_dict.keys() :
+		for _ in range(100) :
+			item = make_item2(toneToken)
 			dataset.append(item)
 
 	with open(output_path, 'w', encoding='utf-8') as f :
