@@ -7,7 +7,9 @@
 % The authors should use one of these tracks.
 % Before accepting by the NeurIPS conference, select one of the options below.
 % 0. "default" for submission
- \usepackage[preprint, nonatbib]{neurips_2025}
+% XeLaTeX 需要 fontspec
+
+\usepackage[preprint, nonatbib]{neurips_2025}
 
 \usepackage[utf8]{inputenc} % allow utf-8 input
 \usepackage[T1]{fontenc}    % use 8-bit T1 fonts
@@ -29,15 +31,57 @@
 \usepackage{amsmath}
 \usepackage{minted} % 用于代码高亮
 \usepackage{xcolor} % 提供颜色支持
-% XeLaTeX 需要 fontspec
-\usepackage{fontspec}
-\usepackage{xeCJK}
+\usepackage{fontspec}  % controls Latin fonts
+\usepackage{xeCJK}     % controls CJK fonts
+\IfFontExistsTF{TeX Gyre Termes}{
+  \setmainfont{TeX Gyre Termes}[Scale=MatchLowercase]
+  \setsansfont{TeX Gyre Heros}[Scale=MatchLowercase]
+  \setmonofont{Latin Modern Mono}
+}{
+  \IfFontExistsTF{Times New Roman}{
+    \setmainfont{Times New Roman}[Scale=MatchLowercase]
+    \setsansfont{Arial}[Scale=MatchLowercase] % approximate phv/Helvetica
+    \setmonofont{Courier New}
+  }{
+    % last resort: Latin Modern (should always exist in TeXLive)
+    \setmainfont{Latin Modern Roman}[Scale=MatchLowercase]
+    \setsansfont{Latin Modern Sans}[Scale=MatchLowercase]
+    \setmonofont{Latin Modern Mono}
+  }
+}
+
+% -------------------------
+% CJK fonts (only for Chinese) — do NOT touch Latin families above
+% Replace these names with the exact fonts available on your system if needed.
+% -------------------------
+\setCJKmainfont{Noto Serif CJK SC} % for simplified/traditional Chinese
+% alternative: \setCJKmainfont{Noto Sans CJK SC} if you want sans style
+
 \usepackage{amsmath, amssymb}
 
-\setCJKmainfont{Noto Serif CJK SC}
-\setCJKsansfont{Noto Sans CJK SC}
-\setCJKmonofont{Noto Sans Mono CJK SC}
+\usepackage{algorithm}  
+\usepackage{algorithmic}   
 
+\makeatletter
+\newenvironment{breakablealgorithm}
+{% \begin{breakablealgorithm}
+		\begin{center}
+			\refstepcounter{algorithm}% New algorithm
+			\hrule height.8pt depth0pt \kern2pt% \@fs@pre for \@fs@ruled
+			\renewcommand{\caption}[2][\relax]{% Make a new \caption
+				{\raggedright\textbf{\ALG@name~\thealgorithm} ##2\par}%
+				\ifx\relax##1\relax % #1 is \relax
+				\addcontentsline{loa}{algorithm}{\protect\numberline{\thealgorithm}##2}%
+				\else % #1 is not \relax
+				\addcontentsline{loa}{algorithm}{\protect\numberline{\thealgorithm}##1}%
+				\fi
+				\kern2pt\hrule\kern2pt
+			}
+		}{% \end{breakablealgorithm}
+		\kern2pt\hrule\relax% \@fs@post for \@fs@ruled
+	\end{center}
+}
+\makeatother
 
 % Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote. 
 \title{Cantonese Lyric Generation with Tone-Aware Alignment}
@@ -91,16 +135,15 @@ The full generation workflow is:
 \begin{itemize}
     \item Input previous lyrics and a MIDI melody segment.
     \item Predict 0243 tones using the Tone Model.
-    \item Generate draft lyrics with the Lyrics Model.
-    \item Iteratively refine lyrics until satisfied.
-\end{itemize}
+    \item Iteration to generate lyrics using the Lyrics Model. Algorithm \ref{alg:workflow} describes the process.
+\end{itemize} 
 
 \subsection{The Tone Model}
 
 The model takes two sequences as input: a current sequence (CurrSeq) and a preview sequence (PrevSeq). Its task is to predict the 0243 tone for each note in CurrSeq. PrevSeq provides broader context to aid prediction.
 
 \subsubsection{Dataset}
-We use the Cantonese corpus \cite{cantonese_corpus_repo}, which contains about 100 Cantonese songs with aligned pitch, character, and Jyutping sequences.
+We use the Cantonese corpus \cite{cantonese_corpus_repo}, which contains about 100 Cantonese songs with well-separated aligned pitch, character, and Jyutping sequences in \texttt{KRN} format.
 
 \subsubsection{Input Construction}
 
@@ -124,11 +167,13 @@ Here $a_i$ represents pitch, $b_i,c_i,d_i$ octave-related features, and $e_i,f_i
 
 \subsubsection{Model Architecture}
 
+Cores of this model are BiLSTM \cite{hochreiter1997long} and MultiHead Attention\cite{vaswani2017attention}. BiLSTM can provide effective sequence modeling with relatively few parameters, while multi-head attention captures dependencies between CurrSeq and PrevSeq.
+
 The model embeds CurrSeq and PrevSeq, then encodes concatenation of embeddings with a shared BiLSTM to obtain $S_{\text{curr}}$ and $S_{\text{prev}}$, then applies multi-head attention with $K=V=S_{\text{prev}}$, $Q=S_{\text{curr}}$ to produce $A$. The final representation $\mathrm{RReLU}(S_{\text{curr}})\odot A$ is passed through an MLP for tone prediction. The structure is shown in Figure~\ref{fig:structure_tone_model}.
 
 \subsubsection{Training}
 
-We implement the model in PyTorch, using the AdamW optimizer, CosineAnnealingLR scheduler, and CrossEntropyLoss.
+We implement the model in PyTorch, using the AdamW optimizer and CrossEntropyLoss. To avoid overfitting, we apply relatively large dropout ($0.5$) and CosineAnnealingLR scheduler.
 
 \subsection{The Lyrics Model}
 
@@ -136,11 +181,20 @@ This model generates the next lyric segment given previous lyrics and 0243 tone 
 
 \subsubsection{Dataset}
 
-We use items from \texttt{zh\_hmn\_continue\_kr.json} and \texttt{canto\_hmn\_continue\_rhyme\_kr.json}, recomputing 0243 tones with the reliable \texttt{pycantonese} library. $\approx 30\%$ of items are converted to masked version that concourage completion. Items without mask provides task of initial generation of lyrics, while masked items helps to learn the way of iteratively refinement. This dataset is called LyricsQry.
+Two datasets are constructed.
 
-To strengthen character–tone association, we also create ToneQry, a small dataset querying the 0243 tone of a character and listing examples with the same tone.
+First, We use items from parts of dataset of ToneCraft\cite{cheng2025tonecraft} with recomputing 0243 tones with the reliable \texttt{pycantonese} library: 
+\begin{itemize}
+\item \texttt{zh\_hmn\_continue\_kr.json}
+\item \texttt{zh\_hmn\_refine\_kr.json}
+\end{itemize} 
+Additionally, we add items from Cantonese-corpus \cite{cantonese_corpus_repo} processed similarly.
 
-Example of items of this dataset are provided in Appendix \ref{appendix:example_of_dataset_lyrics_model} .
+Then, $\approx 30\%$ of These items are converted to partially masked version that encourage completion. Items without mask provides task of initial generation of lyrics, while masked items helps to learn the way of iteratively refinement. This dataset is called LyricsQry.
+
+Second, To strengthen character–tone association, we also create ToneQry, a small dataset querying the 0243 tone of a character and listing examples with the same tone.
+
+Example of items of these two datasets are provided in Appendix \ref{appendix:example_of_dataset_lyrics_model} .
 
 \subsubsection{Model Architecture}
 
@@ -239,6 +293,8 @@ Future work includes improving tone generalization with more diverse data, incor
 
 Our system can serve as an assistant to lyricists, improving efficiency by providing suitable lyric candidates for composers. Moreover, it may lower the barrier to Cantonese lyric writing and promote Cantonese music more broadly.
 
+\newpage
+
 \bibliographystyle{IEEEtran}
 \bibliography{report}
 
@@ -258,6 +314,45 @@ Codes of this project are available at \url{https://github.com/juruohejiarui/Hom
   \caption{Structure of the Tone Model}
   \label{fig:structure_tone_model}
 \end{figure}
+
+\section{Algorithm of the Workflow}
+\begin{breakablealgorithm}
+    \caption{Workflow of Cantonese Lyric Generation}
+    \label{alg:workflow}
+    \begin{algorithmic}
+    \REQUIRE Previous lyrics $L_{\text{prev}}$, 0243 tone sequence $T_{\text{melody}}$ from melody, Number of iterations $N$, Maximum number of candidates $M$, Number of generated lyrics per iteration $K$, Language Model LLM
+    \ENSURE lyrics candidates $L_{\text{gen}}=\{L_1, L_2,\dots \}$ matching $T_{\text{melody}}$
+    \STATE Q$\leftarrow$ \{'￥￥...￥'\} \COMMENT {Initialize query with all masked characters}
+    \STATE $L_{\text{gen}}\leftarrow\{\}$
+
+    \STATE vis$\leftarrow\{\}$
+
+    \FOR {i=1 to N}
+        \STATE s$\leftarrow${pop up item in Q that has minimum number of '￥'}
+        \IF {s $\ne$ '￥￥...￥'}
+            \IF {s $\in$ vis}
+                \STATE $\textbf{continue}$
+            \ENDIF
+            \STATE $vis\leftarrow vis\cup \{s\}$
+        \ENDIF
+        \STATE $L_\text{cand}\leftarrow$ LLM(s, $T_{\text{melody}}$, $L_{\text{prev}}$, K)
+        \FOR {each $L_j$ in $L_\text{cand}$}
+            \IF {$L_j$ matches $T_{\text{melody}}$}
+                \STATE $L_{\text{gen}}\leftarrow L_{\text{gen}}\cup \{L_j\}$
+                \STATE Remove duplicates in $L_{\text{gen}}$
+                \IF {size of $L_{\text{gen}} \ge M$}
+                    \STATE \textbf{break}
+                \ENDIF
+            \ELSE
+                \STATE $L_j'\leftarrow$ mask characters in $L_j$ that do not match $T_{\text{melody}}$
+                \STATE $L_+\leftarrow$ Generate 3 new queries by randomly masking more characters in $L_j'$
+                \STATE $Q\leftarrow Q\cup L_+\cup \{L_j'\}$
+            \ENDIF
+        \ENDFOR
+    \ENDFOR
+    \end{algorithmic}
+\end{breakablealgorithm}
+
 
 \section{Example of Data Items for the Lyrics Model}
 \label{appendix:example_of_dataset_lyrics_model}

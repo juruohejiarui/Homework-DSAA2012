@@ -130,6 +130,8 @@ def search_valid_lyrics(prev_lyrics : list[str], pitc : str, max_iter : int = 20
 			elif isinstance(chk_res, str) :
 				if '￥' not in chk_res :
 					valid_candidates.append(chk_res)
+					# remove duplicates
+					valid_candidates = list(set(valid_candidates))
 					if len(valid_candidates) >= max_candidate :
 						return valid_candidates[ : max_candidate]
 				else :
