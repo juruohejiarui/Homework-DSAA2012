@@ -1,0 +1,347 @@
+\documentclass{article}
+
+% if you need to pass options to natbib, use, e.g.:
+%     \PassOptionsToPackage{numbers, compress}{natbib}
+% before loading neurips_2025
+
+% The authors should use one of these tracks.
+% Before accepting by the NeurIPS conference, select one of the options below.
+% 0. "default" for submission
+ \usepackage[preprint, nonatbib]{neurips_2025}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{xcolor}         % colors
+\usepackage{url}
+\usepackage[toc,page]{appendix}
+
+\usepackage{bookmark}
+\usepackage{svg}
+\svgsetup{
+    inkscapelatex=false,
+}
+\usepackage{amsmath}
+\usepackage{minted} % 用于代码高亮
+\usepackage{xcolor} % 提供颜色支持
+% XeLaTeX 需要 fontspec
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage{amsmath, amssymb}
+
+\setCJKmainfont{Noto Serif CJK SC}
+\setCJKsansfont{Noto Sans CJK SC}
+\setCJKmonofont{Noto Sans Mono CJK SC}
+
+
+% Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote. 
+\title{Cantonese Lyric Generation with Tone-Aware Alignment}
+
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to LaTeX to determine where to break the
+% lines. Using \AND forces a line break at that point. So, if LaTeX puts 3 of 4
+% authors names on the first line, and the last on the second line, try using
+% \AND instead of \And before the third author name.
+
+
+\author{%
+    Jiarui HE \\
+    BEng (AI) \\
+    Hong Kong University of Technology and Science (Guangzhou) \\
+    Guangdong, China \\
+    \texttt{jhe218@connect.hkust-gz.edu.cn} \\
+}
+
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We propose a two-stage pipeline for automatic Cantonese lyric generation under melody constraints. First, a tone-prediction model estimates relative 0243 tones from a MIDI melody; then, a lyrics model generates Cantonese lyrics conditioned on both the predicted tones and preceding lyrical context. Experiments show the tone model achieves $\approx 81\%$ accuracy on a Cantonese song corpus, and the full system produces fluent, tone-compatible lyrics suitable for singing.
+\end{abstract}
+
+\section{Introduction}
+
+Automatic lyric generation has attracted considerable attention, yet existing methods rarely consider tone–melody alignment—a crucial factor for tonal languages like Cantonese. Cantonese tones strongly affect how syllables are sung; ignoring them often yields unsingable lyrics. To address this, we propose a tone-aware lyric generator that first predicts relative 0243 tones from a given melody, then generates lyrics conditioned on both tone and context. This pipeline enables Cantonese lyric generation that aligns well with melody, with modest data requirements and practical applicability.
+
+\section{Related Work}
+
+Song-lyric generation has been studied from both computational and linguistic perspectives. SongMASS \cite{sheng_songmass_2020} introduces a pre-trained seq2seq framework for alignment-aware songwriting but does not handle tonal constraints. Similarly, Chinese lyric-generation models such as \cite{lu_syllable-structured_2019} focus on syllable and structural matching but remain tone-agnostic.
+
+Linguistically, \cite{li_singing_2016} shows that 0243 representations can be a tool of compression of tones. Composer can fill in '0','2','4','3' to fit melody and determine suitable character for each tone. ToneCraft \cite{cheng2025tonecraft} adapts this idea for Cantonese lyric generation, but it lacks a direct melody–lyric connection and only generates lyrics given 0243 tones.
+
+Our work differs by adopting a lightweight two-stage pipeline: predicting 0243 tones directly from melody, then generating lyrics under both tonal and contextual constraints. This offers a flexible and data-efficient alternative to existing approaches.
+
+\section{Methodology}
+
+The generation pipeline consists of two main stages: predicting 0243 tones from melody, then generating lyrics conditioned on these tones and prior lyrics.
+
+\subsection{Workflow}
+
+The full generation workflow is:
+\begin{itemize}
+    \item Input previous lyrics and a MIDI melody segment.
+    \item Predict 0243 tones using the Tone Model.
+    \item Generate draft lyrics with the Lyrics Model.
+    \item Iteratively refine lyrics until satisfied.
+\end{itemize}
+
+\subsection{The Tone Model}
+
+The model takes two sequences as input: a current sequence (CurrSeq) and a preview sequence (PrevSeq). Its task is to predict the 0243 tone for each note in CurrSeq. PrevSeq provides broader context to aid prediction.
+
+\subsubsection{Dataset}
+We use the Cantonese corpus \cite{cantonese_corpus_repo}, which contains about 100 Cantonese songs with aligned pitch, character, and Jyutping sequences.
+
+\subsubsection{Input Construction}
+
+Both CurrSeq and PrevSeq are derived from MIDI sequences. 
+
+CurrSeq use a whole continuous MIDI melody. PrevSeq is constructed by concatenating multiple preceding MIDI segments with a separator $0$ (a value absent in continuous melodies).
+
+For a MIDI sequence $M=\{m_i\}_{i=1}^n$ with $m_i\in\mathbb{N}$, define $m_m=\min_{i: m_i\neq0} m_i$. We construct the feature tuple sequence $I=\{(a_i,b_i,c_i,d_i,e_i,f_i,g_i)\}_{i=1}^n$ as CurrSeq or PrevSeq, where
+\[
+\begin{aligned}
+a_i &= \begin{cases}m_i - m_m + 1 & m_i\neq 0 \\ 0 & \text{otherwise}\end{cases}, \\
+b_i &= \left\lfloor\frac{a_{i+1}-a_i}{12}\right\rfloor, \quad
+c_i = \left\lfloor\frac{a_{i-1}-a_i}{12}\right\rfloor, \quad
+d_i = \left\lfloor\frac{a_i-1}{12}\right\rfloor, \\
+e_i &= (a_{i+1}-a_i) - 12b_i, \quad
+f_i = (a_{i-1}-a_i) - 12c_i, \quad
+g_i = (a_i-1) - 12d_i.
+\end{aligned}
+\]
+Here $a_i$ represents pitch, $b_i,c_i,d_i$ octave-related features, and $e_i,f_i,g_i$ note-name features.
+
+\subsubsection{Model Architecture}
+
+The model embeds CurrSeq and PrevSeq, then encodes concatenation of embeddings with a shared BiLSTM to obtain $S_{\text{curr}}$ and $S_{\text{prev}}$, then applies multi-head attention with $K=V=S_{\text{prev}}$, $Q=S_{\text{curr}}$ to produce $A$. The final representation $\mathrm{RReLU}(S_{\text{curr}})\odot A$ is passed through an MLP for tone prediction. The structure is shown in Figure~\ref{fig:structure_tone_model}.
+
+\subsubsection{Training}
+
+We implement the model in PyTorch, using the AdamW optimizer, CosineAnnealingLR scheduler, and CrossEntropyLoss.
+
+\subsection{The Lyrics Model}
+
+This model generates the next lyric segment given previous lyrics and 0243 tone requirements, inspired by ToneCraft \cite{cheng2025tonecraft} but simplified.
+
+\subsubsection{Dataset}
+
+We use items from \texttt{zh\_hmn\_continue\_kr.json} and \texttt{canto\_hmn\_continue\_rhyme\_kr.json}, recomputing 0243 tones with the reliable \texttt{pycantonese} library. $\approx 30\%$ of items are converted to masked version that concourage completion. Items without mask provides task of initial generation of lyrics, while masked items helps to learn the way of iteratively refinement. This dataset is called LyricsQry.
+
+To strengthen character–tone association, we also create ToneQry, a small dataset querying the 0243 tone of a character and listing examples with the same tone.
+
+Example of items of this dataset are provided in Appendix \ref{appendix:example_of_dataset_lyrics_model} .
+
+\subsubsection{Model Architecture}
+
+We use the \texttt{Qwen2.5-7B-Instruct} base model \cite{qwen2,qwen2.5}. To avoid tokenization issues with 0243 digits, we introduce four new tokens: 일, 이, 삼, 사 for 0, 2, 4, 3 respectively.
+
+\subsubsection{Training}
+
+We fine-tune in two stages using Hugging Face \texttt{TRL}:
+
+\begin{itemize}
+    \item Train the embedding and classifier layers on ToneQry to learn character–tone mappings.
+    \item Fine-tune on LyricsQry and ToneQry using LoRA \cite{hu2022lora}, keeping embedding and classifier layers trainable.
+\end{itemize}
+
+\section{Empirical Analysis}
+
+All experiments run on a single NVIDIA RTX 4090 (48GB) GPU. Detailed of metrics of training process are demonstrated on Appendix \ref{appendix:training_curves}.
+
+\subsection{The Tone Model}
+
+We split the data 85:15 for training/validation, train for 100 epochs with batch size 32 and learning rate $1\times10^{-5}$. Table~\ref{tab:tone_model_performance} shows results. The model achieves 81.54\% overall accuracy and 0.8152 F1-score on the validation set.
+
+\begin{table}[ht]
+\centering
+\scriptsize
+\caption{Performance of the Tone Model}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Tone & 0 & 2 & 4 & 3 & All\\
+\midrule
+\multicolumn{6}{@{}l}{\textbf{Evaluation}} \\
+Precision & 0.7916 & 0.8089 & 0.7935 & 0.8492 & 0.8158 \\
+Recall    & 0.7615 & 0.7667 & 0.8468 & 0.8399 & 0.8154 \\
+F1        & 0.7763 & 0.7873 & 0.8193 & 0.8445 & 0.8152 \\
+Accuracy  & \multicolumn{4}{c@{}}{}           & 0.8154 \\
+Loss      & \multicolumn{5}{c@{}}{0.8494} \\
+\midrule
+\multicolumn{6}{@{}l}{\textbf{Training}} \\
+Precision & 0.8686 & 0.8582 & 0.8411 & 0.9058 & 0.8707\\
+Recall    & 0.8369 & 0.8274 & 0.8992 & 0.8813 & 0.8698\\
+F1        & 0.8524 & 0.8425 & 0.8692 & 0.8934 & 0.8698\\
+Accuracy  & \multicolumn{4}{c@{}}{}           & 0.8698 \\
+Loss      & \multicolumn{5}{c@{}}{0.7622} \\
+\bottomrule
+\end{tabular}
+\label{tab:tone_model_performance}
+\end{table}
+
+\subsection{The Lyrics Model}
+
+For first stage, we set batch size$=8$, learning rate$=2\times10^{-5}$, epochs$=2$, and finally achieve token accuracy $\approx 91\%$ on ToneQry.
+
+For second stage, we set LoRA rank=64, $\alpha=128$, dropout=0.1. 3 epochs, learning rate$=4\times10^{-5}$, batch size$=8$, gradient accumulation steps=2. LyricsQry is split 90:10 for training and testing, while ToneQry all added to training set. Token accuracy reaches $\approx 85.7\%$. But full tone–lyric match accuracy is $\approx 41.8\%$ and it is relatively low due to the complexity of the task and limited data.
+
+\subsection{Workflow Evaluation}
+
+We provide a CLI tool for interactive generation. Users input melody and store history lyrics; the tool returns draft lyrics matching the predicted tones using history lyrics. The system only outputs lyrics that fully satisfy tone constraints, achieving a $\approx 90\%$ success rate.
+
+Here is an example of generation:
+
+\begin{minted}[linenos, breaklines, fontsize=\small]{bash}
+c   c   B   B   G   C   A
+3   3   3   3   4   0   3
+心  都  因  風  向  而  飛
+c   c   B   B   G   C   G
+3   3   3   3   4   0   4
+都  因  天  高  闊  沉  醉
+c   c   B   B   c   d   d
+4   4   2   2   4   3   3
+掛  掛  念  念  那  首  詩 
+\end{minted}
+
+\section{Dissussion}
+
+\subsection{Interpretation of Results}
+
+The Tone Model's 81\% accuracy is encouraging, noting that multiple tone sequences can fit a melody well; predicted tones may still be musically appropriate even if not identical to ground truth.
+
+For the Lyrics Model, two stages of training help the model learn the relationship between characters and tones effectively. The finetuning with LoRA allows the model to adapt to the specific task of Cantonese lyric generation while keeping the base model's knowledge intact.
+
+\subsection{Limitations}
+
+Limited data may affect the Tone Model's generalization and there is strong risk of overfitting.
+
+The lack of thematic control can reduce lyric coherence. Tone–lyric matching accuracy remains moderate, likely due to task complexity and insufficient training data on tone–lyric constraints. Iterative refinement partly mitigates this issue.
+
+\subsection{Ethical Considerations}
+
+Automated lyric generation raises concerns about originality and potential plagiarism. Our system is intended as an assistive tool for human lyricists, not a replacement. Users should ensure generated lyrics are original and respect intellectual property rights.
+
+\section{Conclusion}
+
+We present a practical pipeline for Cantonese lyric generation that explicitly models tone–melody alignment in two stages: tone prediction from melody, then lyric generation conditioned on tone and context. Experiments show our tone model achieves reasonable accuracy, and the lyric model produces fluent, tone-compatible lyrics. This demonstrates the feasibility of automated Cantonese songwriting that respects phonetic and musical constraints. 
+
+Future work includes improving tone generalization with more diverse data, incorporating rhyme and rhythm constraints, and conducting human evaluations of singability and artistic quality.
+
+Our system can serve as an assistant to lyricists, improving efficiency by providing suitable lyric candidates for composers. Moreover, it may lower the barrier to Cantonese lyric writing and promote Cantonese music more broadly.
+
+\bibliographystyle{IEEEtran}
+\bibliography{report}
+
+\newpage
+\appendix
+\section{Architecture of Models}
+
+\subsection{Architecture of the Tone Model}
+
+\begin{figure}[ht]
+  \centering
+  \includesvg[width=0.5\linewidth]{tone_struct.drawio.svg}
+  \caption{Structure of the Tone Model}
+  \label{fig:structure_tone_model}
+\end{figure}
+
+\section{Example of Data Items for the Lyrics Model}
+\label{appendix:example_of_dataset_lyrics_model}
+\subsection{Original Queries}
+\begin{minted}[linenos, breaklines, fontsize=\small]{json}
+{
+    "messages": [
+        {
+            "role": "system",
+            "content": "你是一个专业的粤语作词家"
+        },
+        {
+            "role": "user",
+            "content": "根据给定的Pitches，生成与Pitches适配且相同长度的歌词，每个Pitch对应一个繁体中文字符。此外，生成的歌词要与给定的Previous lyrics连贯。同时，生成的最后一个中文字符需要和给定的Rhyme押韵。\nPrevious lyrics: ['但我分不齣這張是誰的臉']\nRhyme: \nCharacter Nums: 7\nPitches: 삼일삼삼이사사"
+        },
+        {
+            "role": "assistant",
+            "content": "我留著你在身邊"
+        }
+    ],
+    "num_turns": 3,
+}
+\end{minted}
+\subsection{Masked Queries}
+\begin{minted}[linenos, breaklines, fontsize=\small]{json}
+{
+    "messages": [
+        {
+            "role": "system",
+            "content": "你是一个专业的粤语作词家"
+        },
+        {
+            "role": "user",
+            "content": "根据给定的Pitches，以及部分缺失的歌词（缺失的字用￥代替），补全￥位置，使整句歌词自然通顺。每个Pitch对应一个繁体中文字符。此外，生成的歌词要与给定的Previous lyrics连贯。同时，生成的最后一个中文字符需要和给定的Rhyme押韵。\nPrevious lyrics: ['隻要永遠記得相聚']\nRhyme: 聚\nCharacter Nums: 8\nLyrics: 願我歸去￥￥歸去\nPitches: 이삼사삼사사사삼"
+        },
+        {
+            "role": "assistant",
+            "content": "願我歸去怎可歸去"
+        }
+    ],
+    "num_turns": 3,
+}
+\end{minted}
+\subsection{0243 tones of One Character}
+\begin{minted}[linenos, breaklines, fontsize=\small]{json}
+{
+    "messages": [
+        {
+            "role": "system",
+            "content": "你是一个专业的粤语作词家"
+        },
+        {
+            "role": "user",
+            "content": "请写出下面繁体汉字的粤语0243声调（每个汉字对应一个声调数字），字符串形式返回音调。汉字：吖\n请额外提供0243音调相同的50个繁体汉字。"
+        },
+        {
+            "role": "assistant",
+            "content": "사\n的,不,一,中,到,資,可,好,交,他,生,請,天,所,多,麼,小,想,得,之,出,工,都,機,子,心,只,家,知,很,章,當,於,本,現,真,新,因,果,點,鞍,眾,區,誹,誇,譜,款,創,殉,終"
+        }
+    ],
+    "num_turns": 3
+}
+\end{minted}
+
+\newpage
+\section{Metrics of Training Process}
+\label{appendix:training_curves}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{curves_tone.png}
+\caption{Training Process of the Tone Model}
+\label{fig:1}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{curves_lyrics_1.png}
+\caption{Stage 1 Training Process of the Lyrics Model}
+\label{fig:2}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{curves_lyrics_2.png}
+\caption{Stage 2 Training Process of the Lyrics Model}
+\label{fig:3}
+\end{figure}
+
+
+\end{document}

@@ -15,3 +15,4 @@ logs/
 src/ckpts/
 src/dataset/*.json
 .DS_Store
+*/_minted-report

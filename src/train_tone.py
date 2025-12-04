@@ -45,6 +45,8 @@ def get_metrics(preds : torch.Tensor, targets : torch.Tensor) -> dict :
 	precision, recall, f1, _ = precision_recall_fscore_support(true_labels, pred_labels, average='weighted', zero_division=0)
 
 	f1_each = classification_report(true_labels, pred_labels, output_dict=True, zero_division=0)
+	prec_each : list[float] = [f1_each[str(i)]['precision'] for i in range(4)]
+	recall_each : list[float] = [f1_each[str(i)]['recall'] for i in range(4)]
 	f1_each : list[float] = [f1_each[str(i)]['f1-score'] for i in range(4)]
 
 	return {
@@ -52,7 +54,9 @@ def get_metrics(preds : torch.Tensor, targets : torch.Tensor) -> dict :
 		'precision' : precision,
 		'recall' : recall,
 		'f1' : f1,
-		'each': f1_each
+		'prec-each' : prec_each,
+		'recall-each': recall_each,
+		'f1-each': f1_each
 	}
 
 def print_metrics(metrics : dict) -> str :
@@ -149,8 +153,6 @@ def eval_epoch(model : nn.Module, dataLoader : torch.utils.data.DataLoader, crit
 				logits = res
 				preds_flat, targets_flat = get_valid(logits, curr_tone, curr_mask)
 				loss = models.loss_func(preds_flat, targets_flat)
-
-
 			tot_loss += loss.sum().item()
 
 			all_preds.append(preds_flat.detach().cpu())
