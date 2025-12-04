@@ -82,7 +82,7 @@ python ./merge.sft.py \
 We apply `vllm` as inference engine for faster and batch processing. To run inference, use:
 
 ```bash
-vllm serve ./ckpts/lyrics
+vllm serve ckpts/lyrics
 ```
 
 to launch server.

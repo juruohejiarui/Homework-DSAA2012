@@ -8,6 +8,8 @@
 *.pyc
 *.pdf
 *.zip
+*.bbl
+*.blg
 old_dataset/
 src/data/pretrained_models/
 src/pretrained_models/
