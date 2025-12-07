@@ -14,7 +14,7 @@ import openai
 
 tone_model : ToneModel = None
 lyrics_model : openai.OpenAI = None
-temperature = 0.9
+temperature = 0.8
 num_generate = 16
 
 def setup_models(tone_model_path : str, lyrics_path : str) :
@@ -52,7 +52,7 @@ def _make_prompts(prev_lyrics : list[str], pitc : str, masked_lyrics : str | Non
 		{"role": "user", "content": prompt_usr}
 	]
 
-def gen_lyrics(prompts : list[dict[str, str]], max_len : int = 32, num_generate=num_generate, temperature=temperature, top_p : float | None = 1.0) -> list[str] :
+def gen_lyrics(prompts : list[dict[str, str]], max_len : int = 32, num_generate=num_generate, temperature=temperature, top_p : float | None = 1.0, fix : bool = False) -> list[str] :
 	global lyrics_model, lyrics_model_path
 	
 	responses = lyrics_model.chat.completions.create(
@@ -61,6 +61,7 @@ def gen_lyrics(prompts : list[dict[str, str]], max_len : int = 32, num_generate=
 		temperature=temperature,
 		top_p=top_p,
 		n=num_generate,
+		seed=42 if fix else None,
 	)
 	return [choice.message.content.strip() for choice in responses.choices]
 

@@ -11,7 +11,8 @@ import time
 # ---- 后端模型初始化（保持跟你原来一致） ----
 # 如果 backend.setup_models 会将模型装载到 GPU，并且你希望每个线程共享同一个模型实例
 # 就在主线程里初始化一次（如下）。
-backend.setup_models("ckpts/tone_model_best.pth", "ckpts/lyrics")
+# backend.setup_models("ckpts/tone_model_best.pth", "pretrained_models/Qwen2.5-7B-Instruct")
+backend.setup_models("ckpts/tone_model_best.pth", "ckpts/")
 
 # ---- 你的 calc_tone_acc（未改动，直接复用） ----
 def calc_tone_acc(model, output: str, target: str) -> tuple[int, int]:
@@ -116,7 +117,7 @@ def evaluate_dataset(dataset, desc="Evaluating", max_workers=8):
 if __name__ == "__main__":
 	# 你可以根据机器实际情况调整 max_workers（例如 4 / 8 / 16）
 	# 如果有 GPU 并且 backend.gen_lyrics 会触发 GPU 同步调用，过多线程可能效果不好。
-	MAX_WORKERS = 2
+	MAX_WORKERS = 4
 
 	# train_acc, train_acc_num, train_tot, train_time = evaluate_dataset(
 	#	 train_data, desc="Training set tone accuracy", max_workers=MAX_WORKERS

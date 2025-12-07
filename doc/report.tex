@@ -119,9 +119,9 @@ Automatic lyric generation has attracted considerable attention, yet existing me
 
 \section{Related Work}
 
-Song-lyric generation has been studied from both computational and linguistic perspectives. SongMASS \cite{sheng_songmass_2020} introduces a pre-trained seq2seq framework for alignment-aware songwriting but does not handle tonal constraints. Similarly, Chinese lyric-generation models such as \cite{lu_syllable-structured_2019} focus on syllable and structural matching but remain tone-agnostic.
+Song-lyric generation has been studied from both computational and linguistic perspectives. SongMASS \cite{sheng_songmass_2020} introduces a pre-trained seq2seq framework for alignment-aware songwriting but does not handle tonal constraints. Similarly, some Chinese lyric-generation models \cite{lu_syllable-structured_2019} focus on syllable and structural matching but remain tone-agnostic.
 
-Linguistically, \cite{li_singing_2016} shows that 0243 representations can be a tool of compression of tones. Composer can fill in '0','2','4','3' to fit melody and determine suitable character for each tone. ToneCraft \cite{cheng2025tonecraft} adapts this idea for Cantonese lyric generation, but it lacks a direct melody–lyric connection and only generates lyrics given 0243 tones.
+Linguistically, 0243 representations can be a tool of compression of tones. \cite{li_singing_2016} Composer can fill in '0','2','4','3' to fit melody and determine suitable character for each tone. ToneCraft \cite{cheng2025tonecraft} adapts this idea for Cantonese lyric generation, but it lacks a direct melody–lyric connection and only generates lyrics given 0243 tones.
 
 Our work differs by adopting a lightweight two-stage pipeline: predicting 0243 tones directly from melody, then generating lyrics under both tonal and contextual constraints. This offers a flexible and data-efficient alternative to existing approaches.
 
@@ -151,19 +151,7 @@ Both CurrSeq and PrevSeq are derived from MIDI sequences.
 
 CurrSeq use a whole continuous MIDI melody. PrevSeq is constructed by concatenating multiple preceding MIDI segments with a separator $0$ (a value absent in continuous melodies).
 
-For a MIDI sequence $M=\{m_i\}_{i=1}^n$ with $m_i\in\mathbb{N}$, define $m_m=\min_{i: m_i\neq0} m_i$. We construct the feature tuple sequence $I=\{(a_i,b_i,c_i,d_i,e_i,f_i,g_i)\}_{i=1}^n$ as CurrSeq or PrevSeq, where
-\[
-\begin{aligned}
-a_i &= \begin{cases}m_i - m_m + 1 & m_i\neq 0 \\ 0 & \text{otherwise}\end{cases}, \\
-b_i &= \left\lfloor\frac{a_{i+1}-a_i}{12}\right\rfloor, \quad
-c_i = \left\lfloor\frac{a_{i-1}-a_i}{12}\right\rfloor, \quad
-d_i = \left\lfloor\frac{a_i-1}{12}\right\rfloor, \\
-e_i &= (a_{i+1}-a_i) - 12b_i, \quad
-f_i = (a_{i-1}-a_i) - 12c_i, \quad
-g_i = (a_i-1) - 12d_i.
-\end{aligned}
-\]
-Here $a_i$ represents pitch, $b_i,c_i,d_i$ octave-related features, and $e_i,f_i,g_i$ note-name features.
+For a MIDI sequence $M=\{m_i\}_{i=1}^n$ with $m_i\in\mathbb{N}$, We construct the feature tuple sequence $I=\{(a_i,b_i,c_i,d_i,e_i,f_i,g_i)\}_{i=1}^n$ as final input. Detailed description can be found in Appendix \ref{appendix:tone_model_input_features}.
 
 \subsubsection{Model Architecture}
 
@@ -198,7 +186,7 @@ Example of items of these two datasets are provided in Appendix \ref{appendix:ex
 
 \subsubsection{Model Architecture}
 
-We use the \texttt{Qwen2.5-7B-Instruct} base model \cite{qwen2,qwen2.5}. To avoid tokenization issues with 0243 digits, we introduce four new tokens: 일, 이, 삼, 사 for 0, 2, 4, 3 respectively.
+We use the \texttt{Qwen2.5-7B-Instruct} base model \cite{qwen2,qwen2.5}. To avoid tokenization issues with 0243 digits, we introduce four new tokens: 일, 이, 삼, 사 for 0, 2, 4, 3 respectively. Thus it is necessary to train embedding layer and classifier layer.
 
 \subsubsection{Training}
 
@@ -211,7 +199,7 @@ We fine-tune in two stages using Hugging Face \texttt{TRL}:
 
 \section{Empirical Analysis}
 
-All experiments run on a single NVIDIA RTX 4090 (48GB) GPU. Detailed of metrics of training process are demonstrated on Appendix \ref{appendix:training_curves}.
+All experiments run on a single NVIDIA RTX 4090 (48GB) GPU. Detailed of metrics of training process are demonstrated on Appendix \ref{appendix:training_details}.
 
 \subsection{The Tone Model}
 
@@ -245,9 +233,23 @@ Loss      & \multicolumn{5}{c@{}}{0.7622} \\
 
 \subsection{The Lyrics Model}
 
-For first stage, we set batch size$=8$, learning rate$=2\times10^{-5}$, epochs$=2$, and finally achieve token accuracy $\approx 91\%$ on ToneQry.
+For the first stage, we set batch size$=8$, learning rate$=2\times10^{-5}$, epochs$=2$, and finally achieve token accuracy $\approx 91\%$ on ToneQry.
 
-For second stage, we set LoRA rank=64, $\alpha=128$, dropout=0.1. 3 epochs, learning rate$=4\times10^{-5}$, batch size$=8$, gradient accumulation steps=2. LyricsQry is split 90:10 for training and testing, while ToneQry all added to training set. Token accuracy reaches $\approx 85.7\%$. But full tone–lyric match accuracy is $\approx 41.8\%$ and it is relatively low due to the complexity of the task and limited data.
+For the second stage, we set LoRA rank$=64$, $\alpha=128$, dropout=0.1. 3 epochs, learning rate$=4\times10^{-5}$, batch size$=8$, gradient accumulation steps=2. LyricsQry is split 90:10 for training and testing, while ToneQry all added to training set. Token accuracy reaches $\approx 85.7\%$. But full tone–lyric match accuracy is $\approx 41.8\%$. Performance of final model is better than base model and first-stage model, whose accuracy are nearly $0\%$ on the same evaluation set, but still far from satisfactory. Results are shown in Table~\ref{tab:lyrics_model_performance}. Details of calculation of tone accuracy are in Appendix \ref{appendix:calculation_of_tone_accuracy}.
+
+\begin{table}[ht]
+\centering
+\scriptsize
+\caption{Performance of the Tone Model On Stage-2 Evaluation Set}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Metrics & Base & Stage-1 & Stage-2 \\
+\midrule
+Tone Accuracy & 0.0\% & 0.1\% & 41.8\% \\
+Token Accuracy & \multicolumn{2}{c@{}}{} & 85.7\% \\
+\end{tabular}
+\label{tab:lyrics_model_performance}
+\end{table}
 
 \subsection{Workflow Evaluation}
 
@@ -271,15 +273,15 @@ c   c   B   B   c   d   d
 
 \subsection{Interpretation of Results}
 
-The Tone Model's 81\% accuracy is encouraging, noting that multiple tone sequences can fit a melody well; predicted tones may still be musically appropriate even if not identical to ground truth.
+The Tone Model's 81\% accuracy is encouraging, noticing that multiple tone sequences can fit a melody well; predicted tones may still be musically appropriate even if not identical to ground truth. What we need is correctness of main pattern. Meanwhile, accuracy of each tone is highly related to the number of training samples, with '3' being the most common tone in dataset, while '0' is the least common.
 
 For the Lyrics Model, two stages of training help the model learn the relationship between characters and tones effectively. The finetuning with LoRA allows the model to adapt to the specific task of Cantonese lyric generation while keeping the base model's knowledge intact.
 
 \subsection{Limitations}
 
-Limited data may affect the Tone Model's generalization and there is strong risk of overfitting.
+Limited data may affect the Tone Model's generalization and there is strong risk of overfitting. Additionally, limited data may not fully satisfy the requirement of training of complex MultiHead Attention mechanism, and may lead to suboptimal performance.
 
-The lack of thematic control can reduce lyric coherence. Tone–lyric matching accuracy remains moderate, likely due to task complexity and insufficient training data on tone–lyric constraints. Iterative refinement partly mitigates this issue.
+For the Lyrics model, the lack of thematic control can reduce lyric coherence. Tone–lyric matching accuracy remains moderate, likely due to task complexity and insufficient training data on tone–lyric constraints. Iterative refinement partly mitigates this issue.
 
 \subsection{Ethical Considerations}
 
@@ -304,9 +306,24 @@ Our system can serve as an assistant to lyricists, improving efficiency by provi
 
 Codes of this project are available at \url{https://github.com/juruohejiarui/Homework-DSAA2012}.
 
-\section{Architecture of Models}
+\section{The Tone Model}
+\subsection{Construction of Input Features}
+\label{appendix:tone_model_input_features}
+For a MIDI sequence $M=\{m_i\}_{i=1}^n$ with $m_i\in\mathbb{N}$, define $m_m=\min_{i: m_i\neq0} m_i$. Then construct $I$ as :
+\[
+\begin{aligned}
+a_i &= \begin{cases}m_i - m_m + 1 & m_i\neq 0 \\ 0 & \text{otherwise}\end{cases}, \\
+b_i &= \left\lfloor\frac{a_{i+1}-a_i}{12}\right\rfloor, \quad
+c_i = \left\lfloor\frac{a_{i-1}-a_i}{12}\right\rfloor, \quad
+d_i = \left\lfloor\frac{a_i-1}{12}\right\rfloor, \\
+e_i &= (a_{i+1}-a_i) - 12b_i, \quad
+f_i = (a_{i-1}-a_i) - 12c_i, \quad
+g_i = (a_i-1) - 12d_i.
+\end{aligned}
+\]
+Here $a_i$ represents pitch, $b_i,c_i,d_i$ octave-related features, and $e_i,f_i,g_i$ note-name features.
 
-\subsection{Architecture of the Tone Model}
+\subsection{Model Architecture}
 
 \begin{figure}[ht]
   \centering
@@ -356,7 +373,45 @@ Codes of this project are available at \url{https://github.com/juruohejiarui/Hom
 
 \section{Example of Data Items for the Lyrics Model}
 \label{appendix:example_of_dataset_lyrics_model}
-\subsection{Original Queries}
+\subsection{ToneQry}
+\begin{minted}[linenos, breaklines, fontsize=\small]{json}
+{
+    "messages": [
+        {
+            "role": "system",
+            "content": "你是一个专业的粤语作词家"
+        },
+        {
+            "role": "user",
+            "content": "请写出下面繁体汉字的粤语0243声调（每个汉字对应一个声调数字），字符串形式返回音调。汉字：吖\n请额外提供0243音调相同的50个繁体汉字。"
+        },
+        {
+            "role": "assistant",
+            "content": "사\n的,不,一,中,到,資,可,好,交,他,生,請,天,所,多,麼,小,想,得,之,出,工,都,機,子,心,只,家,知,很,章,當,於,本,現,真,新,因,果,點,鞍,眾,區,誹,誇,譜,款,創,殉,終"
+        }
+    ],
+    "num_turns": 3
+},
+{
+    "messages": [
+        {
+            "role": "system",
+            "content": "你是一个专业的粤语作词家"
+        },
+        {
+            "role": "user",
+            "content": "请写出符合0243声调：일 的繁体汉字50个。字符串形式返回汉字。"
+        },
+        {
+            "role": "assistant",
+            "content": "人,來,能,如,文,時,提,們,還,而,台,成,何,同,然,年,前,和,情,題,其,行,華,城,長,明,凰,才,民,全,祥,寧,聯,薇,瓷,衡,儔,朦,韓,承,蘋,漣,瀏,萄,隨,銓,翎,曇,炎,豪"
+        }
+    ],
+    "num_turns": 3
+}
+\end{minted}
+
+\subsection{LyricsQry}
 \begin{minted}[linenos, breaklines, fontsize=\small]{json}
 {
     "messages": [
@@ -374,10 +429,7 @@ Codes of this project are available at \url{https://github.com/juruohejiarui/Hom
         }
     ],
     "num_turns": 3,
-}
-\end{minted}
-\subsection{Masked Queries}
-\begin{minted}[linenos, breaklines, fontsize=\small]{json}
+},
 {
     "messages": [
         {
@@ -396,31 +448,34 @@ Codes of this project are available at \url{https://github.com/juruohejiarui/Hom
     "num_turns": 3,
 }
 \end{minted}
-\subsection{0243 tones of One Character}
-\begin{minted}[linenos, breaklines, fontsize=\small]{json}
-{
-    "messages": [
-        {
-            "role": "system",
-            "content": "你是一个专业的粤语作词家"
-        },
-        {
-            "role": "user",
-            "content": "请写出下面繁体汉字的粤语0243声调（每个汉字对应一个声调数字），字符串形式返回音调。汉字：吖\n请额外提供0243音调相同的50个繁体汉字。"
-        },
-        {
-            "role": "assistant",
-            "content": "사\n的,不,一,中,到,資,可,好,交,他,生,請,天,所,多,麼,小,想,得,之,出,工,都,機,子,心,只,家,知,很,章,當,於,本,現,真,新,因,果,點,鞍,眾,區,誹,誇,譜,款,創,殉,終"
-        }
-    ],
-    "num_turns": 3
-}
-\end{minted}
 
 \newpage
-\section{Metrics of Training Process}
-\label{appendix:training_curves}
+\section{Metrics of Training}
+\label{appendix:training_details}
+\subsection{Calculation of Tone Accuracy}
+\label{appendix:calculation_of_tone_accuracy}
 
+For a validation set $D=\{(L_{\text{prev}}, T)_i\}$, where $L_{\text{prev}}$ is previous lyrics and $T$ is the target 0243 tone sequence. 
+
+For each data item $(L_{\text{prev}}, T)_i$, we generate lyrics $L_{\text{gen},_i}$ directly using the Lyrics Model with temperature $=0.0$, top\_p $=0$ and fixed random seed.
+
+Then get the predicted tone sequence $T_{\text{gen},i}$ from $L_{\text{gen},i}$ using \texttt{pycantonese} library, it may raise error if some characters are not found in the library.
+
+Then, the tone accuracy of this item is :
+\[
+S_i=\begin{cases}
+    0 & |T_{\text{gen},i}|\ne |T|\text{ or face error from }\texttt{pycantonese}  \\
+    \sum_{i=1}^{|T|} \mathbb{I}[T_{\text{gen},i}[j]=T[j]]& \text{otherwise}
+\end{cases}
+\]
+
+The overall tone accuracy is:
+\[
+\text{Tone Accuracy} = \frac{\sum_i S_i}{\sum_i |T_i|}
+\]
+
+\subsection{Metrics on Training Process}
+\label{appendix:training_process}
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{curves_tone.png}
