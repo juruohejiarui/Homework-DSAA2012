@@ -60,7 +60,7 @@ $$
 
 $$
 \begin{aligned}
-\Delta W^{(t)} &= \beta \Delta W^{(t-1)} - \eta \nabla_{W} \mathrm{Loss}(W^{(t-1)} + \beta \Delta W^{(t-1)})^\top \\
+\Delta W^{(t)} &= \beta \Delta W^{(t-1)} - \eta \nabla_{W} \mathrm{Loss}\left(W^{(t-1)} + \beta \Delta W^{(t-1)}\right)^\top \\
 W^{(t)} &= W^{(t-1)} + \Delta W^{(t)}
 \end{aligned}
 $$
@@ -83,8 +83,8 @@ $$
 	&= \beta \mathbb{E}\left[
 		\left(\nabla_{W} \mathrm{Loss}\left(W^{(t-1)}\right)\right)^2
 		\right]
-	 + (1-\beta) \left(\nabla_{W} \mathrm{Loss}\left(W^{(t)}\right)\right)^2 \\
-W^{(t)} &= W^{(t-1)} - \frac{\eta}{\sqrt{\mathbb{E}\left[\left(\nabla_{W} \mathrm{Loss}\left(W^{(t)}\right)\right)^2\right] + \epsilon}} \nabla_{W} \mathrm{Loss}\left(W^{(t)}\right)^\top
+	 + (1-\beta) \left(\nabla_{W} \mathrm{Loss}\left(W^{(t-1)}\right)\right)^2 \\
+W^{(t)} &= W^{(t-1)} - \frac{\eta}{\sqrt{\mathbb{E}\left[\left(\nabla_{W} \mathrm{Loss}\left(W^{(t)}\right)\right)^2\right] + \epsilon}} \nabla_{W} \mathrm{Loss}\left(W^{(t-1)}\right)^\top
 \end{aligned}
 $$
 
@@ -96,8 +96,8 @@ $$
 
 $$
 \begin{aligned}
-m_t &= \delta m_{t-1} + (1 - \delta) \nabla_W \mathrm{Loss}\left(W^{(t)}\right) \\
-v_t &= \gamma v_{t-1} + (1 - \gamma) \left(\nabla_W \mathrm{Loss}\left(W^{(t)}\right)\right)^2 \\
+m_t &= \delta m_{t-1} + (1 - \delta) \nabla_W \mathrm{Loss}\left(W^{(t-1)}\right) \\
+v_t &= \gamma v_{t-1} + (1 - \gamma) \left(\nabla_W \mathrm{Loss}\left(W^{(t-1)}\right)\right)^2 \\
 \hat{m}_t &= \frac{m_t}{1 - \delta^t} \\
 \hat{v}_t &= \frac{v_t}{1 - \gamma^t} \\
 W^{(t)} &= W^{(t-1)} - \frac{\eta}{\sqrt{\hat{v}_t} + \epsilon} \hat{m}_t
