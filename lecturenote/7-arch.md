@@ -73,11 +73,31 @@ $$
 $$
 \begin{aligned}
 \mathbf{h}^{(1)}(t)&=f_1\left(W^{(1)}\mathbf{x}(t) + W^{(11)} \mathbf{h}^{(1)}(t-1) + \mathbf{b}^{(1)}\right) \\
-\mathbf{y}(t)&=f_2\left(W^{(2)}\mathbf{h}(t) + \mathbf{b}^{(2)}\right) \\
+\mathbf{y}(t)&=f_2\left(W^{(2)}\mathbf{h}^{(1)}(t) + \mathbf{b}^{(2)}\right) \\
 \end{aligned}
 $$
 
 其中 $h^{(1)}(-1)$ 可以作为模型参数的一部分。
+
+### Training of Single Hidden Layer RNN
+
+现在假设 $\mathrm{div}$/$\mathrm{Loss}$ 是一个输入为 $\mathrm{y}_{1\dots T}$ ，输出为实数的函数。
+
+令 $\mathbf{z}^{(1)}(t)=W^{(1)}\mathbf{x}(t) + W^{(11)} \mathbf{h}^{(1)}(t-1) + \mathbf{b}^{(1)}$, $\mathbf{z}^{(2)}(t)=W^{(2)}\mathbf{h}^{(1)}(t) + \mathbf{b}^{(2)}$ 。
+
+那么有:
+
+$$
+\begin{aligned}
+\nabla_{\mathbf{z}^{(2)}(t)}\mathrm{Loss} &= \nabla_{\mathbf{y}(t)}\mathrm{Loss} \nabla_{\mathbf{z}^{(2)}(t)} \mathbf{y}(t) \\
+\nabla_{\mathbf{h}^{(1)}(t)}\mathrm{Loss} &= \nabla_{\mathbf{z}^{(2)}(t)}\mathrm{Loss}\times W^{(2)} + \nabla_{\mathbf{z}^{(1)}(t+1)}\mathrm{Loss}\times W^{(11)} \\
+\nabla_{\mathbf{z}^{(1)}(t)}\mathrm{Loss} &= \nabla_{\mathbf{h}^{(1)}(t)}\mathrm{Loss} \nabla_{\mathbf{z}^{(1)}(t)}\mathbf{h}^{(1)}(t) \\
+\nabla_{W^{(2)}}\mathrm{Loss} &\xleftarrow {+} \mathbf{h}^{(1)}(t) \nabla_{\mathbf{z}^{(2)}(t)}\mathrm{Loss} \\
+\nabla_{W^{(11)}}\mathrm{Loss} &\xleftarrow {+} \mathbf{h}^{(1)}(t-1) \nabla_{\mathbf{z}^{(1)}(t)}\mathrm{Loss} \\
+\nabla_{W^{(1)}}\mathrm{Loss} &\xleftarrow {+} \mathbf{x}(t) \nabla_{\mathbf{z}^{(1)}(t)}\mathrm{Loss} \\
+\nabla_{h^{(1)}(-1)}\mathrm{Loss} &= \nabla_{\mathbf{z}^{(1)}(0)}\mathrm{Loss} \times W^{(11)}
+\end{aligned}
+$$
 
 ## Multiple Recurrent Layer RNN
 
@@ -87,8 +107,39 @@ $$
 \begin{aligned}
 \mathbf{h}^{(0)}(t) &= \mathbf{x}(t) \\
 \mathbf{h}^{(i)}(t)&=f_1\left(W^{(i)}\mathbf{h}^{(i-1)}(t) + W^{(ii)} \mathbf{h}^{(i)}(t-1) + \mathbf{b}^{(i)}\right) \\
-\mathbf{y}(t)&=f_2\left(W^{(n+1)}\mathbf{h}(t) + \mathbf{b}^{(n+1)}\right) \\
+\mathbf{y}(t)&=f_2\left(W^{(n+1)}\mathbf{h}^{(n)}(t) + \mathbf{b}^{(n+1)}\right) \\
 \end{aligned}
 $$
 
 这里假设 RNN 有 $n$ 个隐藏层。
+
+## Bidirectional RNN
+
+一个正向，一个反向。当整个序列都可见的时候比较实用。有正反交错和独自计算两种：
+
+![Bidirectional RNN](figs/7-birnn.png)
+
+对于正反都是单层的，首先从 $T\rightarrow 0$ 计算 $\mathbf{h}_f$ 的梯度，然后从 $0\rightarrow T$ 计算 $\mathbf{h}_b$ 的梯度，当然两者可以互换。
+
+## Long Short-Term Memory (LSTM)
+
+设置一个特别的 LSTM Cell，这个 Cell 接受三个输入：1. $\mathbf{x}(t)$; 2. $\mathbf{h}(t-1)$, state; 3. $\mathbf{c}(t-1)$ linear history ，输出为 $\mathbf{h}(t)$, $\mathbf{c}(t)$ 。使用 Sigmoid 作为 Gate Function $\sigma$.
+
+每一个 Gate 都有对应的名称：
+- $f_t$ ： "forget" gate，需要携带多少的 history
+- $i_t$ ： "input" gate，表示新的输入是否值得被记忆
+- $o_t$ ： "output" gate，表示形成的记忆有多少需要展示到输出中
+
+计算式如下：
+
+$$
+\begin{aligned}
+\mathbf{i}_t &= \sigma (W_i[\mathbf{c}_{t-1};\mathbf{h}_{t-1};\mathbf{x}_t] + \mathbf{b}_i) \\
+\mathbf{f}_t &= \sigma (W_f[\mathbf{c}_{t-1};\mathbf{h}_{t-1};\mathbf{x}_t] + \mathbf{b}_f) \\
+\mathbf{o}_t &= \sigma (W_o[\mathbf{c}_t; \mathbf{h}_{t-1};\mathbf{x}_t] + \mathbf{b}_o) \\
+\tilde{\mathbf{c}}_t &= \tanh (W_c[\mathbf{h}_{t-1};\mathbf{x}_t] + \mathbf{b}_c) \\
+\mathbf{c}_t &= \mathbf{f}_t\odot \mathbf{c}_{t-1} + \mathbf{i}_t \odot \tilde{\mathbf{c}}_t \\
+\mathbf{h}_t &= \mathbf{o}_t \odot \tanh (\mathbf{c}_t)
+\end{aligned}
+$$
+![LSTM Cell](figs/7-lstmcell.png)
