@@ -5,10 +5,13 @@
 这样可以使用更少的数据来获取不错的效果。
 
 - Masked language modeling: 给定一个序列，蒙住其中一个，然后让模型填这个被蒙住的词：常用于微调
+
 $$
 P(X) = \prod_{i=1}^{|X|} P(x_i|x_{\ne i})
 $$
+
 - Auto-regressive language modeling: 只提供前序词，用来 finetuning, prompting
+
 $$
 P(X)=\prod_{i=1}^{|X|} P(x_i|x_{<i})
 $$
@@ -50,7 +53,7 @@ GloVo | ELMo
 学习目标：
 
 $$
-\arg\min_{\theta}\sum_{x\in D_{\text{train}}}\sum_{t} - \log p_\theta(x_t | x_{<t})
+\arg\min_{\theta}\sum_{x\in D_{\text{train}}}\sum_{t} - \log p_{\theta}(x_t | x_{<t})
 $$
 
 也就是，预测下一个 token.
@@ -372,3 +375,152 @@ $$
 ## Unified View of Parameter-Efficient Fine-Tuning (PEFT)
 
 ![PEFT Overview](figs/8-peft.png)
+
+# Reinforcement Learning (RL)
+
+我么训练时候可能会有如下问题：
+1. Task Mismatch: 我们一般需要一个模型能完成所有类型的任务
+2. Data Mistach: 数据集可能会包含我们不需要的数据类型，也可能不包含多少我们需要的数据
+3. Exposure Bias: 模型在训练时候没有接触过多少 mistakes ，在测试的时候无法识别，而出现错误
+
+因此需要强化学习，强化学习使用一个 reward 来对模型的输出进行评分，然后返回给模型进行学习。
+
+什么时候使用 RL :
+
+Optimize a sequence-level task criterion
+- E.g., generate response + evaluate response
+- E.g., chain-of-thought + evaluate answer
+
+We have a non-trivial MDP (states, actions, env)
+- E.g. a dialog where we get a reward at the end
+- E.g. an agent buying something on a website
+
+## Reward
+
+包含两种：Rule-based; Model-based
+
+### Rule-based
+
+A verifiable/checkable property of the output ，根据规则直接给分，或者是一条小表达式。
+
+### Model-based
+
+包含两种：
+
+1. Direct assessment model，认为这个输出是对的还是错的，或者是一个正确的概率
+2. Preference model，对输出的偏好程度，输出一个有进行数值比较意义地值
+
+#### Preference model
+
+一个数据集包含好和坏两种数据 $D=\left\{\left(y^{(n)}_{+},y^{(n)}_{-}\right)\right\}_{i=1}^n$
+
+然后使用模型 $r_{\theta}$ 进行评分，loss 函数为：
+
+$$
+\mathcal{L}=-\sum_{y_{+},y_{-}\in D}\log \sigma(r_{\theta}(y_+)-r_{\theta}(y_-))
+$$
+
+## Optimizing Reward Functions
+
+### RL setup
+
+一个典型的强化学习过程：根据一个 State $s\in S$, 根据一个 policy（就是我们需要训练的 model）$\pi_{\theta}(a|s)$ 进行一个操作：$a\in A$ ，然后得到了一个新状态 $s'=\text{Env}(s,a)$ ，以及一个 reward $r(s,a)$ 
+
+### Basic policy gradient
+
+理论上，我们需要最大化如下方程：
+
+$$
+\arg\max_{\theta} \underbrace{\mathbb{E}_{x\sim D} \mathbb{E}_{y\sim p_{\theta}(y|x)}[r(x,y)]}_{J(\theta)}
+$$
+
+然后对 $J(\theta)$ 使用梯度下降，对于给定的 $x$ ，就会有：
+
+$$
+\begin{aligned}
+\nabla_{\theta}J(\theta) &= \mathbb{E}_{y\sim p_{\theta}(\cdot |x)}\left[r(x,y)\nabla_{\theta} \log p_{\theta}(y|x)\right] \\
+&\approx r(x,\hat{y}) \nabla_{\theta}\log p_{\theta}\left(\hat{y}|x\right)
+\end{aligned}
+$$
+
+其中 $\hat{y}\sim p_{\theta}(\cdot |x)$,.
+
+如果模型的输出获得了高 reward，那么就会有 positive gradient; 否则会获得 negative gradient 。
+
+实际操作中，期望值通过一个或者若干个样本进行近似。
+
+将其转换成普通 GD 的形式，就会变成：
+- 输出 $\hat{y}\sim p_{\theta}(\cdot | x)$
+- 计算 $\text{loss}=-r(x,\hat{y})\log p_{\theta}(\hat{y}|x)=\sum_{t} \nabla_{\theta} r(s_t,a_t) \log p_{\theta}(a_t|s_t)$
+- 进行梯度下降，更新参数
+
+如果是一个多步操作，也就是通过多次尝试来得到输出，那么可以使用 $\hat{r}_T=\gamma^{T-1}r_T (\text{e.g}~\gamma=0.9)$ 来获取用于计算 loss 的实际 reward ，或者只在最后成功的那一步设置 reward 。
+
+### Stabilizing training
+
+训练过程可能不是一帆风顺的，可能会有如下问题:
+- Reward hacking
+  - 过拟合到某种形式，比如如果要输出最 offensive 的回答，那么可能不输出最好
+  - KL penalty 可以缓解
+- Reward scaling
+- Large updates
+
+#### KL Penalty
+
+让被训练的模型和原始模型保持某种程度上的一致：
+
+$$
+\arg\max_{\theta} \mathbb{E}_{x,y}[r(x,y)] - \beta D_{\text{KL}}(p_{\theta}\Vert p_0)
+$$
+
+实际应用中会作为一个 reward 项：
+
+$$
+r^{\text{KL}}=-\beta \log \frac{p_{\theta}(y|x)}{p_0(y|x)}
+$$
+
+#### Reward scaling
+
+将每一项进行缩放，一般来说，缩放比例是根据 baseline 进行的：
+
+$$
+\mathcal{L}_{\text{adv}}=-A(x,y)\log p_{\theta}(y|x)=-(r(x,y)-b(x,y))\log p_{\theta}(y|x)
+$$
+
+其中 $b(x,y)=0$ 就是不添加比较。
+
+Baseline 有很多种：
+1. 对于一个样本，产生多个输出，将他们的 reward 取平均 (e.g. GRPO)
+2. 对训练的历史 reward 取平均
+3. 训练一个模型来计算期望reward
+
+#### Large updates
+
+训练通常充满噪声，因此一次非常显著的更新（偏移很大）会导致问题 $\rightarrow$ 那就不要一次动太远。
+
+拿 PPO 举个例子：
+
+$$
+\begin{aligned}
+\text{ratio}(x,y)&=\frac{p_{\theta}(y|x)}{p_{\theta_{\text{old}}}(y|x)} \\
+\mathcal{L} &= \min\left\{\text{ratio}(x,y)A(x,y),\text{clip}(\text{ratio},1-\epsilon,1+\epsilon)A(x,y)\right\}
+\end{aligned}
+$$
+
+总结一下，就有：
+![RL](figs/8-rl.png)
+
+## RLHF & RLVR
+
+### RL with Human Feedback (RLHF)
+
+1. 收集人类反馈
+2. 训练 reward 模型
+3. 使用 PPO 训练 policy 模型
+
+![RLHF-1](figs/8-rlhf-1.png)
+![RLHF-2](figs/8-rlhf-2.png)
+
+### RL with Verifiable Rewards (RLVR)
+
+使用和 RLHF 相同的 objective ，但是将 reward 模型替换为一个 verification 函数，有类似 SFT 那样的 grounth truth 就可以了。
