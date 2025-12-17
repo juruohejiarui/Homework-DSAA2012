@@ -300,7 +300,7 @@ $g(\mathbf{a}, \mathbf{b})$ 可以有很多种选择，标红的部分是可学�
 
 ## KVQ
 
-从 Encoder 的 $\mathbf{h}$ 导出 Key 和 Value ，其中 Key 用于表示这个 input 再当前 $t$ 的重要程度；然后从 Decoder 的 $\mathbf{s}$ 导出 Query 表示当前需要注意哪个 input 。具体来说，导出方式如下：
+从 Encoder 的 $\mathbf{h}$ 导出 Key 和 Value ，其中 Key 用于表示这个 input 在当前 $t$ 的重要程度；然后从 Decoder 的 $\mathbf{s}$ 导出 Query 表示当前需要注意哪个 input 。具体来说，导出方式如下：
 
 $$
 \mathbf{k}_i = W_k \mathbf{h}_i, \quad \mathbf{v}_i = W_v \mathbf{h}_i, \quad \mathbf{q}_t = W_q \mathbf{s}_{t-1}
