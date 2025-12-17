@@ -306,3 +306,131 @@ $$
 $$
 
 从而实现 **可训练、可采样的概率生成模型**。
+
+# GAN
+
+## Discriminative vs Generative；Explicit vs Implicit
+- **判别模型（Discriminative）**：建模 $P(y\mid x)$，任务是分类或回归（给定输入预测标签）。  
+- **生成模型（Generative）**：建模（或能采样）$P(x)$ 或 $P(x,y)$，目标是从训练分布中采样逼真的新样本。  
+- **显式分布模型（Explicit）**：能显式计算并评估 $P(x)$（例如某些 VAE / autoregressive models）。  
+- **隐式分布模型（Implicit）**：只能采样，而不直接给出 $P(x)$ 的解析表达（GAN 即一例）。
+
+![Structure of GAN](figs/9-ganstruct.png)
+
+## GAN 的基本要素与目标
+- **Generator** $G(z;\theta)$：从先验 $z\sim p_z(z)$（例如 $\mathcal{N}(0,I)$）生成样本 $G(z)$，希望生成分布 $P_G$ 与真实数据分布 $P_{data}$ 一致。  
+- **Discriminator** $D(x;\phi)$：输出 $D(x)\in[0,1]$，表示输入 $x$ 为真实样本的概率。  
+- **原始 min-max 形式**（Goodfellow et al., 2014）：
+$$
+\min_G \max_D \; \mathbb{E}_{x\sim P_{data}}[\log D(x)] \;+\; \mathbb{E}_{z\sim p_z}[\log(1 - D(G(z)))].
+$$
+- 判别器目标：对真实样本输出 1、对生成样本输出 0；生成器目标：使 $D(G(z))$ 趋近 1（“愚弄”判别器）。
+
+![Training of GAN](figs/9-gantrain.png)
+---
+
+## 最优判别器与训练目标的解释
+- 给定固定的 $G$，最优的 $D$ 可写为
+$$
+D^*(x)=\frac{P_{data}(x)}{P_{data}(x) + P_G(x)}.
+$$
+- 将该式代回原始目标，可证明 GAN 的训练等价于最小化 **Jensen–Shannon Divergence (JSD)**（生成分布与真实分布之间的对称距离的一种形式）。当 $P_G = P_{data}$ 时，达到最优，此时判别器对任何样本输出 $1/2$。
+
+$$
+\text{JSD}(P,Q)=0.5D_{\text{KL}}(P, 0.5(P+Q)) + 0.5D_{\text{KL}}(Q, 0.5(P+Q))
+$$
+
+---
+
+## 训练中的实际问题（不稳定性与 mode collapse）
+- **训练不稳定**：对抗训练是双人博弈，不保证梯度下降会收敛（可能出现循环、振荡、发散等）。  
+- **判别器过强**：若 $D$ 很快把真假区分开，生成器将得不到有效梯度（梯度消失），难以改进。  
+- **判别器过弱**：提供误导性信号，导致生成器学出劣质或塌缩（mode collapse）解。  
+- **mode collapse（模式坍缩）**：生成器只输出少数几类样本或甚至同一类样本，覆盖性差。
+- **不收敛到全局最优**
+- **不保证到达 stationary point**
+
+---
+
+## 实践中常用的改进技巧
+### 1) 非饱和（non-saturating）生成器目标
+为避免生成器在训练初期梯度消失，常用替代目标（maximize $\log D(G(z))$）：
+$$
+\text{Alt. Gen loss: } \quad \max_G \; \mathbb{E}_{z}[\log D(G(z))].
+$$
+该替代目标能给生成器提供更强的梯度信号（常见实现技巧）。
+
+### 2) Instance Noise
+在判别器输入处加入微小噪声（对真实与生成样本都加）来平滑判别器决策边界，使其在“点”附近也有有意义梯度，从而有助于稳定训练。
+
+### 3) Least Squares GAN (LSGAN)
+用 L2 损失替代二元交叉熵，减小损失范围与震荡：
+- Generator 尝试最小化 $\|a - D(G(z))\|_2^2$；
+- Discriminator 尝试最小化 $\|b - D(x)\|_2^2 + \|c - D(G(z))\|_2^2$。  
+该方法使学习更平滑、数值稳定。
+
+### 4) Discriminator Regularization（如 DRAGAN）
+在真实数据附近惩罚判别器梯度的范数，避免判别器函数在真实样本处形成尖峰（peak），提升判别器的平滑性与泛化。
+
+### 5) Unrolled GAN
+在更新 generator 时模拟（unroll）判别器的若干步梯度更新，找到在判别器未来反应下 generator 的“最优”更新方向，并通过对这些步骤反向传播来更新 generator，从而缓解某些训练不稳或模式坍缩的问题。
+
+![Unrolled GAN](figs/9-unrollgan.png)
+
+### 6) Divergence 替换：Wasserstein GAN（WGAN）
+- 将 JSD/KL 替换为 **Wasserstein distance**（earth mover’s distance），它在分布支撑不重叠时仍能提供有意义且平滑的梯度。  
+- 这通常需要对判别器（称作 critic）做 1-Lipschitz 约束（最初用权重剪切，后用 gradient penalty 更稳定）。
+
+---
+
+## 体系结构与案例
+- 经典 DCGAN（卷积生成器 + 判别器）在图像生成上开创了许多实践规范（如 batch norm、去全连接层过多的用法等）。  
+- 讲义中以 **anime avatar** 为例展示生成结果与训练流程（见讲义图示）。:contentReference[oaicite:12]{index=12}
+
+---
+
+## 从 VAE 到 Diffusion Models（层级 VAE 的观念）
+- VAE 在一次性将 $z\sim\mathcal{N}(0,I)$ 转化为复杂数据分布时往往显得步幅过大，导致生成模糊。为此提出**层级 VAE（Stacking VAEs）**或逐步解噪的思想。:contentReference[oaicite:13]{index=13}
+
+---
+
+## Denoising Diffusion Probabilistic Models (DDPM)
+### 基本思想
+- **Forward（扩散）过程**：从真实数据 $x_0$ 通过逐步添加高斯噪声，得到一系列 $x_1, x_2, \dots, x_T$，最终使 $x_T$ 接近标准正态：
+$$
+q(x_t \mid x_{t-1}) = \mathcal{N}\big(x_t; \sqrt{1-\beta_t}\, x_{t-1},\, \beta_t I\big),
+$$
+其中 $\beta_t$ 是预定的噪声调度（noise schedule）。
+
+- **闭式表达**：任意时刻 $t$ 可直接采样：
+$$
+q(x_t \mid x_0) = \mathcal{N}\big(x_t; \sqrt{\bar\alpha_t}\, x_0,\; (1-\bar\alpha_t) I\big),
+$$
+其中 $\bar\alpha_t = \prod_{s=1}^t (1-\beta_s)$，并且可以写成
+$$
+x_t = \sqrt{\bar\alpha_t}\, x_0 + \sqrt{1-\bar\alpha_t}\, \varepsilon,\qquad \varepsilon\sim\mathcal{N}(0,I).
+$$
+
+
+### Reverse（去噪）过程 —— 生成
+- 目标是学习条件分布 $p_\theta(x_{t-1}\mid x_t)$，通常用高斯近似：
+$$
+p_\theta(x_{t-1}\mid x_t) = \mathcal{N}\big(x_{t-1}; \mu_\theta(x_t, t),\; \sigma_t^2 I\big).
+$$
+- 训练等价于学习如何一步步去除噪声（stack of denoisers）——可视作堆叠的可学习 VAE decoder
+
+![Diffusion Model](figs/9-df.png)
+
+### Compare with VAE
+
+VAE 的 decoder 需要将一个高斯分布用一步来转移到目标分布上
+- 两者经常有较大间隔
+- 会产生模糊的输出
+
+### DDPM / DDIM
+- **DDPM**：使用 U-Net 等强大网络训练逐步去噪模型并能生成高质量图像（训练时间长但样本质量优异）。
+- **DDIM**：提供更少步骤生成的变体（deterministic or implicit sampling paths），以减少采样步骤数。
+
+## 现代 Diffusion-based 系列与应用
+- **Stable Diffusion**：在 VAE 的 latent 空间上做 diffusion（latent diffusion），大幅降低计算与内存开销，实现文本条件高分辨率合成（配合大规模文本-图像模型）
+- 讲义还列举了 DALLE（hierarchical text-conditional generation）、DiT（transformer for diffusion）、MAR（autoregressive with diffusion loss）等近期相关工作。
