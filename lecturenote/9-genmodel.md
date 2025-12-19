@@ -56,6 +56,7 @@ $$
 challenges: 序列长度
 
 e.g. 
+
 1. PixelRNN：一个RNN，使用先前的所有像素来生成当前像素，可以直接使用大量的图像进行训练，不需要标记。
 2. Image Transformer：需要使用一种记忆力效率更到的注意力模式
 
@@ -98,6 +99,7 @@ e.x. WaveNet for Audio
 当我们训练 AE 的时候，可以直接给一个限制 $z$ ，说 $z$ 符合某个分布，典型的比如 $\mathcal{N}(0,I)$ ，一个标准正态分布。高斯分布是 least informative distribution ，因此相对于同样方差的其他分布，有更高的 entropy 。那么应当如何训练模型，使得这个 $z$ 符合分布？
 
 考虑到高斯分布的特殊性：
+
 1. 每个变量独立
 2. negative log probability 和 变量的 square norm $\Vert \mathbb{x}\Vert^2$ 成正比。
 
@@ -165,6 +167,7 @@ $$
 其中 $C$ 是全秩但幅度较小的协方差矩阵。
 
 这意味着：
+
 - 数据分布集中在某个低维流形附近
 - 但在高维空间中仍然是连续的、可建模的概率分布
 
@@ -207,6 +210,7 @@ $$
 $$
 
 鼓励 encoder 输出的分布 $Q(z|x)$ 接近先验分布 $P(z)$。这样可以保证：
+
 - 不同样本对应的 latent 分布不会彼此孤立
 - 整体 latent space 结构良好、可采样
 
@@ -220,6 +224,7 @@ P(z) = \mathcal{N}(0, I),
 $$
 
 原因包括：
+
 - 各向同性、无偏
 - 在固定方差下熵最大（least informative）
 - 数学形式简单，KL 项可解析计算
@@ -235,6 +240,7 @@ Q(z|x) = \mathcal{N}\big(z;\,\mu(x), \mathrm{diag}(\sigma^2(x))\big).
 $$
 
 Encoder 网络输出：
+
 - 均值向量 $\mu(x)$
 - 方差向量 $\sigma^2(x)$（或 $\log \sigma^2(x)$）
 
@@ -244,6 +250,7 @@ Encoder 网络输出：
 
 ### Decoder 的角色
 Decoder 定义条件分布 $P(x|z)$，形式取决于数据类型：
+
 - 连续数据：高斯分布
 - 二值图像：Bernoulli 分布
 
@@ -253,6 +260,7 @@ Decoder 本质上是一个从 latent space 到 data space 的生成网络。
 
 ### 训练过程（单个样本）
 对每个输入 $x$：
+
 1. Encoder 输出 $\mu(x), \sigma(x)$，构造 $Q(z|x)$  
 2. 从 $Q(z|x)$ 中采样 $z$  
 3. 计算重建误差 $-\log P(x|z)$  
@@ -265,10 +273,11 @@ Decoder 本质上是一个从 latent space 到 data space 的生成网络。
 
 ### 生成阶段
 训练完成后：
+
 - **丢弃 encoder**
 - 从先验分布采样 $z \sim \mathcal{N}(0, I)$
 - 通过 decoder 生成样本：
-- 
+
 $$
 \hat{x} \sim P(x|z)
 $$
@@ -279,10 +288,12 @@ $$
 
 ### 潜变量空间的直观理解
 由于：
+
 - encoder 输出的是分布而非点
 - KL 项将所有 $Q(z|x)$ 拉向统一先验
 
 latent space 会形成一个：
+
 - 连续
 - 连通
 - 易于插值和采样
@@ -293,6 +304,7 @@ latent space 会形成一个：
 
 ### 小结
 VAE 的核心思想可以概括为：
+
 - 用 encoder 学习 $Q(z|x)$ 近似后验
 - 用 decoder 学习 $P(x|z)$ 进行生成
 - 用 KL 正则保证 latent space 结构良好
@@ -310,6 +322,7 @@ $$
 # GAN
 
 ## Discriminative vs Generative；Explicit vs Implicit
+
 - **判别模型（Discriminative）**：建模 $P(y\mid x)$，任务是分类或回归（给定输入预测标签）。  
 - **生成模型（Generative）**：建模（或能采样）$P(x)$ 或 $P(x,y)$，目标是从训练分布中采样逼真的新样本。  
 - **显式分布模型（Explicit）**：能显式计算并评估 $P(x)$（例如某些 VAE / autoregressive models）。  
@@ -318,22 +331,29 @@ $$
 ![Structure of GAN](figs/9-ganstruct.png)
 
 ## GAN 的基本要素与目标
+
 - **Generator** $G(z;\theta)$：从先验 $z\sim p_z(z)$（例如 $\mathcal{N}(0,I)$）生成样本 $G(z)$，希望生成分布 $P_G$ 与真实数据分布 $P_{data}$ 一致。  
 - **Discriminator** $D(x;\phi)$：输出 $D(x)\in[0,1]$，表示输入 $x$ 为真实样本的概率。  
 - **原始 min-max 形式**（Goodfellow et al., 2014）：
+
 $$
 \min_G \max_D \; \mathbb{E}_{x\sim P_{data}}[\log D(x)] \;+\; \mathbb{E}_{z\sim p_z}[\log(1 - D(G(z)))].
 $$
+
 - 判别器目标：对真实样本输出 1、对生成样本输出 0；生成器目标：使 $D(G(z))$ 趋近 1（“愚弄”判别器）。
 
 ![Training of GAN](figs/9-gantrain.png)
+
 ---
 
 ## 最优判别器与训练目标的解释
+
 - 给定固定的 $G$，最优的 $D$ 可写为
+- 
 $$
 D^*(x)=\frac{P_{data}(x)}{P_{data}(x) + P_G(x)}.
 $$
+
 - 将该式代回原始目标，可证明 GAN 的训练等价于最小化 **Jensen–Shannon Divergence (JSD)**（生成分布与真实分布之间的对称距离的一种形式）。当 $P_G = P_{data}$ 时，达到最优，此时判别器对任何样本输出 $1/2$。
 
 $$
@@ -343,6 +363,7 @@ $$
 ---
 
 ## 训练中的实际问题（不稳定性与 mode collapse）
+
 - **训练不稳定**：对抗训练是双人博弈，不保证梯度下降会收敛（可能出现循环、振荡、发散等）。  
 - **判别器过强**：若 $D$ 很快把真假区分开，生成器将得不到有效梯度（梯度消失），难以改进。  
 - **判别器过弱**：提供误导性信号，导致生成器学出劣质或塌缩（mode collapse）解。  
@@ -353,70 +374,93 @@ $$
 ---
 
 ## 实践中常用的改进技巧
+
 ### 1) 非饱和（non-saturating）生成器目标
+
 为避免生成器在训练初期梯度消失，常用替代目标（maximize $\log D(G(z))$）：
+
 $$
 \text{Alt. Gen loss: } \quad \max_G \; \mathbb{E}_{z}[\log D(G(z))].
 $$
+
 该替代目标能给生成器提供更强的梯度信号（常见实现技巧）。
 
 ### 2) Instance Noise
+
 在判别器输入处加入微小噪声（对真实与生成样本都加）来平滑判别器决策边界，使其在“点”附近也有有意义梯度，从而有助于稳定训练。
 
 ### 3) Least Squares GAN (LSGAN)
+
 用 L2 损失替代二元交叉熵，减小损失范围与震荡：
+
 - Generator 尝试最小化 $\|a - D(G(z))\|_2^2$；
 - Discriminator 尝试最小化 $\|b - D(x)\|_2^2 + \|c - D(G(z))\|_2^2$。  
+
 该方法使学习更平滑、数值稳定。
 
 ### 4) Discriminator Regularization（如 DRAGAN）
+
 在真实数据附近惩罚判别器梯度的范数，避免判别器函数在真实样本处形成尖峰（peak），提升判别器的平滑性与泛化。
 
 ### 5) Unrolled GAN
+
 在更新 generator 时模拟（unroll）判别器的若干步梯度更新，找到在判别器未来反应下 generator 的“最优”更新方向，并通过对这些步骤反向传播来更新 generator，从而缓解某些训练不稳或模式坍缩的问题。
 
 ![Unrolled GAN](figs/9-unrollgan.png)
 
 ### 6) Divergence 替换：Wasserstein GAN（WGAN）
+
 - 将 JSD/KL 替换为 **Wasserstein distance**（earth mover’s distance），它在分布支撑不重叠时仍能提供有意义且平滑的梯度。  
 - 这通常需要对判别器（称作 critic）做 1-Lipschitz 约束（最初用权重剪切，后用 gradient penalty 更稳定）。
 
 ---
 
 ## 体系结构与案例
+
 - 经典 DCGAN（卷积生成器 + 判别器）在图像生成上开创了许多实践规范（如 batch norm、去全连接层过多的用法等）。  
 - 讲义中以 **anime avatar** 为例展示生成结果与训练流程（见讲义图示）。:contentReference[oaicite:12]{index=12}
 
 ---
 
 ## 从 VAE 到 Diffusion Models（层级 VAE 的观念）
+
 - VAE 在一次性将 $z\sim\mathcal{N}(0,I)$ 转化为复杂数据分布时往往显得步幅过大，导致生成模糊。为此提出**层级 VAE（Stacking VAEs）**或逐步解噪的思想。:contentReference[oaicite:13]{index=13}
 
 ---
 
 ## Denoising Diffusion Probabilistic Models (DDPM)
+
 ### 基本思想
+
 - **Forward（扩散）过程**：从真实数据 $x_0$ 通过逐步添加高斯噪声，得到一系列 $x_1, x_2, \dots, x_T$，最终使 $x_T$ 接近标准正态：
+- 
 $$
 q(x_t \mid x_{t-1}) = \mathcal{N}\big(x_t; \sqrt{1-\beta_t}\, x_{t-1},\, \beta_t I\big),
 $$
+
 其中 $\beta_t$ 是预定的噪声调度（noise schedule）。
 
 - **闭式表达**：任意时刻 $t$ 可直接采样：
+
 $$
 q(x_t \mid x_0) = \mathcal{N}\big(x_t; \sqrt{\bar\alpha_t}\, x_0,\; (1-\bar\alpha_t) I\big),
 $$
+
 其中 $\bar\alpha_t = \prod_{s=1}^t (1-\beta_s)$，并且可以写成
+
 $$
 x_t = \sqrt{\bar\alpha_t}\, x_0 + \sqrt{1-\bar\alpha_t}\, \varepsilon,\qquad \varepsilon\sim\mathcal{N}(0,I).
 $$
 
 
 ### Reverse（去噪）过程 —— 生成
+
 - 目标是学习条件分布 $p_\theta(x_{t-1}\mid x_t)$，通常用高斯近似：
+
 $$
 p_\theta(x_{t-1}\mid x_t) = \mathcal{N}\big(x_{t-1}; \mu_\theta(x_t, t),\; \sigma_t^2 I\big).
 $$
+
 - 训练等价于学习如何一步步去除噪声（stack of denoisers）——可视作堆叠的可学习 VAE decoder
 
 ![Diffusion Model](figs/9-df.png)
@@ -424,13 +468,16 @@ $$
 ### Compare with VAE
 
 VAE 的 decoder 需要将一个高斯分布用一步来转移到目标分布上
+
 - 两者经常有较大间隔
 - 会产生模糊的输出
 
 ### DDPM / DDIM
+
 - **DDPM**：使用 U-Net 等强大网络训练逐步去噪模型并能生成高质量图像（训练时间长但样本质量优异）。
 - **DDIM**：提供更少步骤生成的变体（deterministic or implicit sampling paths），以减少采样步骤数。
 
 ## 现代 Diffusion-based 系列与应用
+
 - **Stable Diffusion**：在 VAE 的 latent 空间上做 diffusion（latent diffusion），大幅降低计算与内存开销，实现文本条件高分辨率合成（配合大规模文本-图像模型）
 - 讲义还列举了 DALLE（hierarchical text-conditional generation）、DiT（transformer for diffusion）、MAR（autoregressive with diffusion loss）等近期相关工作。

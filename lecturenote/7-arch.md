@@ -168,9 +168,11 @@ $$
 \nabla_{\mathbf{h}_t}\mathrm{Loss}, & \nabla_{\mathbf{c}_t}^{\text{future}}\mathrm{Loss}
 \end{aligned}
 $$
+
 可以推导出反向传播的公式：
 
 首先对于 $\nabla_{\mathbf{c}_t}\mathrm{Loss}$ :
+
 $$
 \begin{aligned}
 \nabla_{\mathbf{o}_t}\mathrm{Loss} &= \nabla_{\mathbf{h}_t}\mathrm{Loss} \odot \mathbf{m}_t \\
@@ -284,12 +286,14 @@ $$
 也就是根据 encoder 的 hidden state，以及模型的上一个 decoder 中的 hidden state，来决定这一个位置的权重。
 
 注意 $\mathbf{s}_{-1}$ 可以
+
 1. 是一个可学习的参数
 2. 一个固定值
 3. encoder 的 $\mathbf{h}$ 的平均值
 4. 或者 $W_{-1}\overline{\mathbf{h}}$ ，其中 $W_{-1}$ 是可学习的参数。
 
 $g(\mathbf{a}, \mathbf{b})$ 可以有很多种选择，标红的部分是可学习的参数：
+
 - Dot Product: $\mathbf{a}^\top \mathbf{b}$ 
 - Bilinear: $\mathbf{a}^\top \textcolor{red}{W_g} \mathbf{b}$ 
 - Nonlinear: $\textcolor{red}{\mathbf{v}_g}^\top \tanh\left(\textcolor{red}{W_g} \begin{bmatrix}\mathbf{a} \\ \mathbf{b} \end{bmatrix}\right)$ 

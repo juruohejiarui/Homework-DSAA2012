@@ -6,8 +6,8 @@
 | :---: | :---: | :---: |
 | Sigmoid | $\frac{1}{1 + \exp(-z)}$ | $f(z)(1-f(z))$ |
 | tanh | $\frac{\exp(z)-\exp(-z)}{exp(z)+\exp(-z)}$ | $1 - (f(z))^2$ |
-| ReLU | $\begin{cases} x & \text{if}~x\ge 0 \\ 0 & \text{otherwise}\end{cases}$ | $\mathbb{I}(x\ge 0)$
-| SoftPlus | $\log(1 + \exp(z))$ | $\frac{1}{1 + \exp(-z)}$ 
+| ReLU | $\begin{cases} x & \text{if}~x\ge 0 \\ 0 & \text{otherwise}\end{cases}$ | $\mathbb{I}(x\ge 0)$ |
+| SoftPlus | $\log(1 + \exp(z))$ | $\frac{1}{1 + \exp(-z)}$  |
 
 **Vector Activation**: SoftMax
 
@@ -69,6 +69,7 @@ $$
 **Chain Rule**: 
 
 对于 $l=f(y), y=g(z)\Rightarrow l=f(g(z))$ 
+
 $$
 \frac{\mathrm{d} l}{\mathrm{d} z} = \underbrace{\frac{\mathrm{d} l}{\mathrm{d} y}}_{f}\underbrace{\frac{\mathrm{d} y}{\mathrm{d} z}}_{g}
 $$

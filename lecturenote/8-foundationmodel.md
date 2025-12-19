@@ -24,7 +24,7 @@ $$
 
 接下来是和 GloVo 的比较：
 
-GloVo | ELMo
+| GloVo | ELMo |
 | :--- | :--- |
 | 提供静态的 embedding ，每个词向量和其余的无关 | 可以提供包含上下文信息的 embedding |
 | 不能分辨有多义词 | 可以处理多义词问题 (polysemy) |
@@ -36,6 +36,7 @@ GloVo | ELMo
 一个多层自注意力模型，输入为一堆 词/[CLS]/subword 。用于 masked word prediction + next sentence prediction 。使用了 BooksCorpus + English Wikipedia 作为数据集。
 
 对于 Masked Word Prediction:
+
 - $80\%$ 的输入被替换为 [MASK]
 - $10\%$ 被替换为随机词
 - $10\%$ 不变
@@ -61,6 +62,7 @@ $$
 ![Autoregressive Languge Modeling](figs/8-autoreg.png)
 
 可以通过如下方式对模型评估：
+
 1. Loss: 画出 train, validation, test 的 loss 曲线，和同族的模型进行比较
 2. 使用 Few-shot prompting ，也就是在 prompt 中添加一些正确的例子
 3. Fine-tuning
@@ -86,7 +88,7 @@ $$
 
 不需要进行 梯度下降，直接在任务中提供一些 examples ，也叫 in-context learning 。
 
-```
+```txt
 Translate English to French:
 sea otter => loutre de mer
 plush girafe => girafe peluche
@@ -116,6 +118,7 @@ cheese =>
 ### Filtering
 
 去除不需要的文本：
+
 1. Language Filter
 2. Repetitions
 3. 过多短句 (Too many short lines)
@@ -123,6 +126,7 @@ cheese =>
 ### Deduplication
 
 进行去重：
+
 1. 使用 minihash 进行模糊
 2. 但是过度去重可能有害
 
@@ -166,6 +170,7 @@ $$
 使用不同数量的 token 和 不同参数量地模型进行训练。
 
 上图中：
+
 - $\textcolor{blue}{\text{蓝线}}$: 训练中每一步的 loss
 - $\textcolor{black}{\text{黑线}}$: 不同 $C$ 下的最小 loss ，被称为 Compute optimal
 - $\textcolor{orange}{\text{橙线}}$: 对 $(C,\text{loss})$ 跑一个线性回归
@@ -221,7 +226,7 @@ Prompting: 	x'= "I love this movie. Overall it was [z]"
 
 实际上，会被转化成类似如下的文本：
 
-```
+```txt
 <|begin_of_text|><|start_header_id|>system<|end_header_id|>
 
 "Please classify movie reviews as 'positive' or 'negative'.<|eot_id|>
@@ -244,6 +249,7 @@ This movie is a banger.<|eot_id|>
 上面已经展示了一次 few-shot 了。
 
 对于 chatbot 格式的 prompt ，可以添加一组
+
 ```json
 {
 	"role": "system",
@@ -325,6 +331,7 @@ D_{\text{KL}}(p_{\text{data}}\Vert p_{\theta})\rightarrow D_{\text{KL}}(p_{\text
 $$
 
 但是可能会
+
 - 模型对其他不针对微调的任务表现变差
 - 需要接受特定的格式
 - 不能很好地 few-shot learning
@@ -379,6 +386,7 @@ $$
 # Reinforcement Learning (RL)
 
 我么训练时候可能会有如下问题：
+
 1. Task Mismatch: 我们一般需要一个模型能完成所有类型的任务
 2. Data Mistach: 数据集可能会包含我们不需要的数据类型，也可能不包含多少我们需要的数据
 3. Exposure Bias: 模型在训练时候没有接触过多少 mistakes ，在测试的时候无法识别，而出现错误
@@ -388,10 +396,12 @@ $$
 什么时候使用 RL :
 
 Optimize a sequence-level task criterion
+
 - E.g., generate response + evaluate response
 - E.g., chain-of-thought + evaluate answer
 
 We have a non-trivial MDP (states, actions, env)
+
 - E.g. a dialog where we get a reward at the end
 - E.g. an agent buying something on a website
 
@@ -490,6 +500,7 @@ $$
 其中 $b(x,y)=0$ 就是不添加比较。
 
 Baseline 有很多种：
+
 1. 对于一个样本，产生多个输出，将他们的 reward 取平均 (e.g. GRPO)
 2. 对训练的历史 reward 取平均
 3. 训练一个模型来计算期望reward
@@ -519,6 +530,7 @@ $$
 3. 使用 PPO 训练 policy 模型
 
 ![RLHF-1](figs/8-rlhf-1.png)
+
 ![RLHF-2](figs/8-rlhf-2.png)
 
 ### RL with Verifiable Rewards (RLVR)
